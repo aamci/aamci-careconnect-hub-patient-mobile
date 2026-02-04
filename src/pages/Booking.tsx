@@ -8,7 +8,8 @@ import {
   User,
   ChevronRight,
   Check,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Header } from "@/components/layout/Header";
@@ -16,7 +17,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/common/Card";
 import { Avatar } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
-import { practitioners, userProfiles } from "@/data/mockData";
+import { Skeleton } from "@/components/ui/skeleton";
+import { usePractitioner } from "@/hooks/usePractitioners";
+import { usePatientProfiles } from "@/hooks/usePatientProfiles";
+import { useCreateAppointment } from "@/hooks/useAppointments";
+import { useToast } from "@/hooks/use-toast";
 import { format, parse } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -35,21 +40,44 @@ const consultationReasons = [
 export default function BookingPage() {
   const { practitionerId } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   
   const dateParam = searchParams.get("date");
   const timeParam = searchParams.get("time");
 
+  const { data: practitioner, isLoading: practitionerLoading } = usePractitioner(practitionerId || '');
+  const { data: profiles, isLoading: profilesLoading } = usePatientProfiles();
+  const createAppointment = useCreateAppointment();
+
   const [step, setStep] = useState<BookingStep>("profile");
-  const [selectedProfileId, setSelectedProfileId] = useState(userProfiles[0].id);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [consultationType, setConsultationType] = useState<"in_person" | "teleconsultation">("in_person");
   const [notes, setNotes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const practitioner = practitioners.find(p => p.id === practitionerId);
-  const selectedProfile = userProfiles.find(p => p.id === selectedProfileId);
+  // Set default profile when loaded
+  if (profiles && profiles.length > 0 && !selectedProfileId) {
+    setSelectedProfileId(profiles[0].id);
+  }
+
+  const selectedProfile = profiles?.find(p => p.id === selectedProfileId);
   const appointmentDate = dateParam ? parse(dateParam, 'yyyy-MM-dd', new Date()) : new Date();
+
+  const isLoading = practitionerLoading || profilesLoading;
+
+  if (isLoading) {
+    return (
+      <PageContainer noPadding>
+        <Header title="Réservation" showBack />
+        <div className="px-4 py-6 space-y-4">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      </PageContainer>
+    );
+  }
 
   if (!practitioner || !dateParam || !timeParam) {
     return (
@@ -63,18 +91,38 @@ export default function BookingPage() {
   }
 
   const handleConfirm = async () => {
-    setIsSubmitting(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // In a real app, this would create the appointment
-    navigate("/appointments", { 
-      state: { 
-        success: true,
-        message: "Votre rendez-vous a été confirmé"
-      }
-    });
+    if (!selectedProfileId || !selectedReason) return;
+
+    // Create datetime from date and time params
+    const [hours, minutes] = timeParam.split(':');
+    const scheduledAt = new Date(appointmentDate);
+    scheduledAt.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+    try {
+      await createAppointment.mutateAsync({
+        patient_profile_id: selectedProfileId,
+        practitioner_id: practitioner.id,
+        facility_id: practitioner.facility_id || undefined,
+        scheduled_at: scheduledAt.toISOString(),
+        duration: 30,
+        type: consultationType,
+        reason: consultationReasons.find(r => r.id === selectedReason)?.label || selectedReason,
+        notes: notes || undefined,
+      });
+
+      toast({
+        title: "Rendez-vous confirmé",
+        description: "Votre rendez-vous a été enregistré avec succès",
+      });
+
+      navigate("/appointments");
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de créer le rendez-vous. Veuillez réessayer.",
+      });
+    }
   };
 
   const canProceed = () => {
@@ -140,16 +188,16 @@ export default function BookingPage() {
           <Card className="p-4 mb-6">
             <div className="flex gap-3">
               <Avatar
-                src={practitioner.avatarUrl}
-                alt={`${practitioner.firstName} ${practitioner.lastName}`}
+                src={practitioner.avatar_url || undefined}
+                alt={`${practitioner.first_name} ${practitioner.last_name}`}
                 size="lg"
               />
               <div>
                 <h3 className="font-semibold">
-                  Dr. {practitioner.firstName} {practitioner.lastName}
+                  Dr. {practitioner.first_name} {practitioner.last_name}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  {practitioner.specialty.name}
+                  {practitioner.specialty?.name}
                 </p>
                 <div className="flex items-center gap-3 mt-2 text-sm">
                   <span className="flex items-center gap-1 text-primary font-medium">
@@ -173,7 +221,7 @@ export default function BookingPage() {
                   Pour qui prenez-vous rendez-vous ?
                 </h2>
                 <div className="space-y-3">
-                  {userProfiles.map((profile) => (
+                  {profiles?.map((profile) => (
                     <button
                       key={profile.id}
                       onClick={() => setSelectedProfileId(profile.id)}
@@ -185,15 +233,16 @@ export default function BookingPage() {
                       )}
                     >
                       <Avatar
-                        alt={`${profile.firstName} ${profile.lastName}`}
+                        src={profile.avatar_url || undefined}
+                        alt={`${profile.first_name} ${profile.last_name}`}
                         size="md"
                       />
                       <div className="flex-1 text-left">
                         <p className="font-medium">
-                          {profile.firstName} {profile.lastName}
+                          {profile.first_name} {profile.last_name}
                         </p>
                         <p className="text-sm text-muted-foreground capitalize">
-                          {profile.profileType === 'self' ? 'Moi' : profile.profileType === 'child' ? 'Enfant' : 'Proche'}
+                          {profile.profile_type === 'self' ? 'Moi' : profile.profile_type === 'child' ? 'Enfant' : 'Proche'}
                         </p>
                       </div>
                       {selectedProfileId === profile.id && (
@@ -214,7 +263,7 @@ export default function BookingPage() {
                 </h2>
                 
                 {/* Consultation Type */}
-                {practitioner.teleconsultationEnabled && (
+                {practitioner.teleconsultation_enabled && (
                   <div className="mb-6">
                     <p className="text-sm font-medium text-muted-foreground mb-2">
                       Type de consultation
@@ -296,7 +345,7 @@ export default function BookingPage() {
                       <span className="text-muted-foreground">Patient</span>
                     </div>
                     <span className="font-medium">
-                      {selectedProfile?.firstName} {selectedProfile?.lastName}
+                      {selectedProfile?.first_name} {selectedProfile?.last_name}
                     </span>
                   </div>
                   <div className="p-4 flex items-center justify-between">
@@ -339,11 +388,11 @@ export default function BookingPage() {
                   </div>
                 </Card>
 
-                {practitioner.consultationPrice && (
+                {practitioner.consultation_price && (
                   <div className="mt-4 p-4 rounded-xl bg-muted/50 flex items-center justify-between">
                     <span className="font-medium">Prix de la consultation</span>
                     <span className="text-xl font-bold text-primary">
-                      {practitioner.consultationPrice}€
+                      {practitioner.consultation_price}€
                     </span>
                   </div>
                 )}
@@ -368,9 +417,16 @@ export default function BookingPage() {
               <Button
                 className="flex-1"
                 onClick={handleConfirm}
-                disabled={isSubmitting}
+                disabled={createAppointment.isPending}
               >
-                {isSubmitting ? "Confirmation..." : "Confirmer"}
+                {createAppointment.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Confirmation...
+                  </>
+                ) : (
+                  "Confirmer"
+                )}
               </Button>
             ) : (
               <Button
