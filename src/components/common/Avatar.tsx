@@ -6,6 +6,7 @@ interface AvatarProps {
   fallback?: string;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
+  onClick?: () => void;
 }
 
 const sizeClasses = {
@@ -21,7 +22,8 @@ export function Avatar({
   alt, 
   fallback, 
   size = "md",
-  className 
+  className,
+  onClick
 }: AvatarProps) {
   const initials = fallback || alt
     .split(" ")
@@ -30,11 +32,15 @@ export function Avatar({
     .toUpperCase()
     .slice(0, 2);
 
+  const Component = onClick ? 'button' : 'div';
+
   return (
-    <div
+    <Component
+      onClick={onClick}
       className={cn(
         "relative flex items-center justify-center rounded-full bg-primary/10 text-primary font-semibold overflow-hidden",
         sizeClasses[size],
+        onClick && "cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all",
         className
       )}
     >
@@ -47,6 +53,6 @@ export function Avatar({
       ) : (
         <span>{initials}</span>
       )}
-    </div>
+    </Component>
   );
 }
