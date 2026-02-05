@@ -105,7 +105,7 @@ export default function PractitionerDetailPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-background pb-24">
+      <div className="min-h-screen bg-background pb-24 overflow-x-hidden">
         {/* Hero Section */}
         <div className="relative">
           <div className="h-48 bg-gradient-primary" />
@@ -113,7 +113,8 @@ export default function PractitionerDetailPage() {
           {/* Back Button */}
           <button
             onClick={() => navigate(-1)}
-            className="absolute top-4 left-4 w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-lg"
+            className="absolute top-4 left-4 w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-lg touch-target"
+            aria-label="Retour"
           >
             <ChevronLeft className="h-5 w-5 text-foreground" />
           </button>
@@ -122,7 +123,8 @@ export default function PractitionerDetailPage() {
           <div className="absolute top-4 right-4 flex gap-2">
             <button
               onClick={() => setIsFavorite(!isFavorite)}
-              className="w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-lg"
+              className="w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-lg touch-target"
+              aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
             >
               <Heart 
                 className={cn(
@@ -133,32 +135,33 @@ export default function PractitionerDetailPage() {
             </button>
             <button
               onClick={() => console.log("Share")}
-              className="w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-lg"
+              className="w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-lg touch-target"
+              aria-label="Partager"
             >
               <Share2 className="h-5 w-5 text-foreground" />
             </button>
           </div>
 
           {/* Profile Card */}
-          <div className="absolute -bottom-20 left-4 right-4">
+          <div className="absolute -bottom-20 left-4 right-4 max-w-lg mx-auto">
             <Card className="p-4">
-              <div className="flex gap-4">
+              <div className="flex gap-3 sm:gap-4">
                 <img
                   src={practitioner.avatar_url || '/placeholder.svg'}
                   alt={`${practitioner.first_name} ${practitioner.last_name}`}
-                  className="w-24 h-24 rounded-2xl object-cover shadow-md"
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-md shrink-0"
                 />
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-xl font-bold font-display text-foreground">
+                  <h1 className="text-lg sm:text-xl font-bold font-display text-foreground truncate">
                     Dr. {practitioner.first_name} {practitioner.last_name}
                   </h1>
-                  <p className="text-primary font-medium">
+                  <p className="text-primary font-medium text-sm sm:text-base truncate">
                     {practitioner.specialty?.name}
                   </p>
                   <div className="flex items-center gap-1 mt-1">
-                    <Star className="h-4 w-4 fill-warning text-warning" />
+                    <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-warning text-warning shrink-0" />
                     <span className="font-semibold">{practitioner.rating}</span>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-xs sm:text-sm text-muted-foreground">
                       ({practitioner.review_count} avis)
                     </span>
                   </div>
@@ -169,18 +172,18 @@ export default function PractitionerDetailPage() {
         </div>
 
         {/* Content */}
-        <div className="px-4 pt-24 space-y-6">
+        <div className="px-4 pt-24 space-y-6 max-w-lg mx-auto">
           {/* Quick Info */}
           <div className="flex flex-wrap gap-2">
             {practitioner.teleconsultation_enabled && (
-              <Badge variant="info" icon={<Video className="h-3 w-3" />}>
+              <Badge variant="info" icon={<Video className="h-3 w-3" />} className="text-xs">
                 Téléconsultation
               </Badge>
             )}
             {practitioner.accepts_new_patients && (
-              <Badge variant="success">Accepte nouveaux patients</Badge>
+              <Badge variant="success" className="text-xs">Nouveaux patients</Badge>
             )}
-            <Badge variant="muted" icon={<Globe className="h-3 w-3" />}>
+            <Badge variant="muted" icon={<Globe className="h-3 w-3" />} className="text-xs">
               {practitioner.languages?.join(", ") || "Français"}
             </Badge>
           </div>
@@ -189,15 +192,15 @@ export default function PractitionerDetailPage() {
           {practitioner.bio && (
             <div>
               <h2 className="text-lg font-semibold font-display mb-2">À propos</h2>
-              <p className="text-muted-foreground">{practitioner.bio}</p>
+              <p className="text-muted-foreground text-sm sm:text-base">{practitioner.bio}</p>
             </div>
           )}
 
           {/* Price */}
           {practitioner.consultation_price && (
-            <div className="flex items-center justify-between py-3 border-y border-border">
-              <span className="text-muted-foreground">Prix de la consultation</span>
-              <span className="text-xl font-bold text-foreground">
+            <div className="flex items-center justify-between py-3 border-y border-border gap-4">
+              <span className="text-muted-foreground text-sm sm:text-base">Prix de la consultation</span>
+              <span className="text-lg sm:text-xl font-bold text-foreground shrink-0">
                 {practitioner.consultation_price}€
               </span>
             </div>
@@ -205,8 +208,8 @@ export default function PractitionerDetailPage() {
 
           {/* Date Selection */}
           <div>
-            <h2 className="text-lg font-semibold font-display mb-3">Choisir une date</h2>
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+            <h2 className="text-base sm:text-lg font-semibold font-display mb-3">Choisir une date</h2>
+            <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
               {dates.map((date) => {
                 const isSelected = format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
                 return (
@@ -217,7 +220,7 @@ export default function PractitionerDetailPage() {
                       setSelectedSlot(null);
                     }}
                     className={cn(
-                      "flex flex-col items-center min-w-[60px] py-3 px-4 rounded-xl transition-all",
+                      "flex flex-col items-center min-w-[50px] sm:min-w-[60px] py-2 sm:py-3 px-3 sm:px-4 rounded-xl transition-all",
                       isSelected
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -226,7 +229,7 @@ export default function PractitionerDetailPage() {
                     <span className="text-xs font-medium uppercase">
                       {formatDateLabel(date)}
                     </span>
-                    <span className="text-xl font-bold mt-1">
+                    <span className="text-lg sm:text-xl font-bold mt-0.5 sm:mt-1">
                       {format(date, "d")}
                     </span>
                   </button>
@@ -238,27 +241,27 @@ export default function PractitionerDetailPage() {
           {/* Time Slots */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold font-display">Créneaux disponibles</h2>
+              <h2 className="text-base sm:text-lg font-semibold font-display">Créneaux disponibles</h2>
               <span className="text-sm text-muted-foreground">
                 {availableSlots.length} dispo.
               </span>
             </div>
             
             {availableSlots.length === 0 ? (
-              <Card variant="flat" className="p-6 text-center">
+              <Card variant="flat" className="p-4 sm:p-6 text-center">
                 <Clock className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-sm sm:text-base">
                   Aucun créneau disponible pour cette date
                 </p>
               </Card>
             ) : (
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 xs:grid-cols-4 gap-2">
                 {availableSlots.map((slot) => (
                   <button
                     key={slot.time}
                     onClick={() => setSelectedSlot(slot.time)}
                     className={cn(
-                      "py-2.5 px-3 rounded-xl text-sm font-medium transition-all",
+                      "py-2 sm:py-2.5 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-medium transition-all min-h-[40px]",
                       selectedSlot === slot.time
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-foreground hover:bg-muted/80"
@@ -274,18 +277,22 @@ export default function PractitionerDetailPage() {
 
         {/* Bottom CTA */}
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom">
-          <Button
-            className="w-full"
-            size="lg"
-            disabled={!selectedSlot}
-            onClick={handleBookAppointment}
-          >
-            <Calendar className="h-5 w-5 mr-2" />
-            {selectedSlot 
-              ? `Réserver à ${selectedSlot}` 
-              : "Sélectionnez un créneau"
-            }
-          </Button>
+          <div className="max-w-lg mx-auto">
+            <Button
+              className="w-full"
+              size="lg"
+              disabled={!selectedSlot}
+              onClick={handleBookAppointment}
+            >
+              <Calendar className="h-5 w-5 mr-2 shrink-0" />
+              <span className="truncate">
+                {selectedSlot 
+                  ? `Réserver à ${selectedSlot}` 
+                  : "Sélectionnez un créneau"
+                }
+              </span>
+            </Button>
+          </div>
         </div>
       </div>
     </>

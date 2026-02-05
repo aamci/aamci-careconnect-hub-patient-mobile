@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { 
   Search as SearchIcon, 
@@ -68,24 +68,24 @@ export default function SearchPage() {
 
   return (
     <>
-      <PageContainer noPadding>
+      <PageContainer noPadding className="overflow-x-hidden">
         <Header title="Rechercher" />
         
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 max-w-lg mx-auto">
           {/* Search Input */}
           <div className="relative mb-4">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground shrink-0" />
             <input
               type="text"
               placeholder="Nom, spécialité..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full h-12 pl-10 pr-4 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              className="w-full h-11 sm:h-12 pl-10 pr-10 rounded-xl border border-border bg-card text-foreground text-sm sm:text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             />
             {query && (
               <button
                 onClick={() => setQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -98,18 +98,18 @@ export default function SearchPage() {
               variant={showFilters ? "default" : "outline"}
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className="shrink-0"
+              className="shrink-0 min-h-[36px]"
             >
-              <Filter className="h-4 w-4 mr-1" />
+              <Filter className="h-4 w-4 mr-1 shrink-0" />
               Filtres
             </Button>
             <Button
               variant={teleconsultationOnly ? "default" : "outline"}
               size="sm"
               onClick={() => setTeleconsultationOnly(!teleconsultationOnly)}
-              className="shrink-0"
+              className="shrink-0 min-h-[36px]"
             >
-              <Video className="h-4 w-4 mr-1" />
+              <Video className="h-4 w-4 mr-1 shrink-0" />
               Téléconsultation
             </Button>
             {hasActiveFilters && (
@@ -117,7 +117,7 @@ export default function SearchPage() {
                 variant="ghost"
                 size="sm"
                 onClick={clearFilters}
-                className="shrink-0 text-destructive"
+                className="shrink-0 text-destructive min-h-[36px]"
               >
                 <X className="h-4 w-4 mr-1" />
                 Effacer
@@ -127,7 +127,7 @@ export default function SearchPage() {
 
           {/* Specialty Filter */}
           {showFilters && (
-            <div className="mb-4 animate-slide-down">
+            <div className="mb-4 animate-fade-in">
               <p className="text-sm font-medium text-muted-foreground mb-2">Spécialité</p>
               {specialtiesLoading ? (
                 <div className="flex flex-wrap gap-2">
@@ -145,7 +145,7 @@ export default function SearchPage() {
                         key={specialty.id}
                         onClick={() => setSelectedSpecialty(isSelected ? "" : specialty.id)}
                         className={cn(
-                          "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-all",
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm transition-all min-h-[32px]",
                           isSelected 
                             ? "bg-primary text-primary-foreground" 
                             : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -164,16 +164,16 @@ export default function SearchPage() {
           {/* Results */}
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              {practitioners?.length || 0} résultat{(practitioners?.length || 0) > 1 ? 's' : ''}
+              {practitioners?.length || 0} résultat{(practitioners?.length || 0) !== 1 ? 's' : ''}
             </p>
 
             {practitionersLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <Card key={i} className="p-4">
+                  <Card key={i} className="p-3 sm:p-4">
                     <div className="flex gap-3">
-                      <Skeleton className="w-12 h-12 rounded-full" />
-                      <div className="flex-1">
+                      <Skeleton className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0" />
+                      <div className="flex-1 min-w-0">
                         <Skeleton className="h-5 w-32 mb-1" />
                         <Skeleton className="h-4 w-24 mb-2" />
                         <Skeleton className="h-6 w-20" />
@@ -197,53 +197,54 @@ export default function SearchPage() {
                 <Card 
                   key={practitioner.id} 
                   hover
-                  className="p-4"
+                className="p-3 sm:p-4"
                   onClick={() => navigate(`/practitioners/${practitioner.id}`)}
                 >
                   <div className="flex gap-3">
                     <Avatar
                       src={practitioner.avatar_url || undefined}
                       alt={`${practitioner.first_name} ${practitioner.last_name}`}
-                      size="lg"
+                    size="md"
+                    className="shrink-0"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-semibold text-foreground">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">
                             Dr. {practitioner.first_name} {practitioner.last_name}
                           </h3>
-                          <p className="text-sm text-muted-foreground">
+                        <p className="text-xs sm:text-sm text-muted-foreground truncate">
                             {practitioner.specialty?.name}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1 text-sm shrink-0">
-                          <Star className="h-4 w-4 fill-warning text-warning" />
+                      <div className="flex items-center gap-1 text-xs sm:text-sm shrink-0">
+                        <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-warning text-warning" />
                           <span className="font-medium">{practitioner.rating}</span>
                         </div>
                       </div>
                       
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         {practitioner.teleconsultation_enabled && (
-                          <Badge variant="info" icon={<Video className="h-3 w-3" />}>
+                        <Badge variant="info" icon={<Video className="h-3 w-3" />} className="text-[10px] sm:text-xs">
                             Vidéo
                           </Badge>
                         )}
                         {practitioner.accepts_new_patients && (
-                          <Badge variant="success">Accepte nouveaux patients</Badge>
+                        <Badge variant="success" className="text-[10px] sm:text-xs">Nouveaux patients</Badge>
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between mt-3">
-                        <div className="text-sm">
+                    <div className="flex items-center justify-between mt-2 sm:mt-3">
+                      <div className="text-xs sm:text-sm">
                           {practitioner.next_availability && (
                             <span className="text-success font-medium">
-                              Dispo. {isToday(new Date(practitioner.next_availability)) ? "aujourd'hui" : 
-                                      isTomorrow(new Date(practitioner.next_availability)) ? "demain" : "bientôt"}
+                            Dispo. {isToday(new Date(practitioner.next_availability)) ? "auj." : 
+                                    isTomorrow(new Date(practitioner.next_availability)) ? "dem." : "bientôt"}
                             </span>
                           )}
                         </div>
                         {practitioner.consultation_price && (
-                          <span className="text-sm font-semibold text-foreground">
+                        <span className="text-xs sm:text-sm font-semibold text-foreground">
                             {practitioner.consultation_price}€
                           </span>
                         )}
