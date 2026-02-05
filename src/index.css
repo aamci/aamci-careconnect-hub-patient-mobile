@@ -129,6 +129,12 @@
 }
 
 @layer base {
+  /* Prevent text selection on buttons and interactive elements */
+  button, [role="button"], a {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
   * {
     @apply border-border;
   }
@@ -141,10 +147,20 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    /* Prevent overscroll bounce */
+    overscroll-behavior: none;
+    /* Smooth font rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Prevent text size adjustment */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    /* Prevent orphan words */
+    text-wrap: balance;
   }
 }
 
@@ -221,6 +237,8 @@
   .bottom-nav {
     @apply fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border;
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* Ensure minimum touch area */
+    min-height: 56px;
   }
 
   /* Input focus states */
@@ -238,6 +256,50 @@
   .avatar-md { @apply w-10 h-10; }
   .avatar-lg { @apply w-12 h-12; }
   .avatar-xl { @apply w-16 h-16; }
+
+  /* Container that respects safe areas */
+  .container-safe {
+    @apply w-full max-w-md mx-auto;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  /* Full height page without overflow */
+  .page-full {
+    @apply min-h-screen flex flex-col overflow-x-hidden;
+    min-height: 100dvh;
+  }
+
+  /* Scrollable content area */
+  .content-scroll {
+    @apply flex-1 overflow-y-auto overflow-x-hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Fixed bottom bar */
+  .fixed-bottom {
+    @apply fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Responsive text that doesn't overflow */
+  .text-truncate {
+    @apply truncate max-w-full;
+  }
+
+  .text-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .text-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 }
 
 @layer utilities {
@@ -315,5 +377,35 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Prevent horizontal overflow globally */
+  .no-overflow-x {
+    overflow-x: hidden;
+  }
+
+  /* Dynamic viewport height */
+  .h-dvh {
+    height: 100dvh;
+  }
+
+  .min-h-dvh {
+    min-height: 100dvh;
+  }
+
+  /* Responsive padding */
+  .px-safe {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  /* Prevent layout shift */
+  .aspect-square {
+    aspect-ratio: 1 / 1;
+  }
+
+  /* Responsive gap */
+  .gap-responsive {
+    gap: clamp(0.5rem, 2vw, 1rem);
   }
 }

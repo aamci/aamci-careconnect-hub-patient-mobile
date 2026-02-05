@@ -1,16 +1,15 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { 
   FileText, 
   Download, 
   Eye, 
-  Filter,
   Search,
   Pill,
   TestTube,
   Stethoscope,
   Receipt,
-  File
+  File,
+  X
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -19,11 +18,16 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/common/Card";
 import { Badge } from "@/components/common/Badge";
 import { EmptyState } from "@/components/common/EmptyState";
-import { documents } from "@/data/mockData";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import type { DocumentType } from "@/types";
+import type { Database } from "@/integrations/supabase/types";
+
+type DocumentType = Database["public"]["Enums"]["document_type"];
 
 const documentTypeConfig: Record<DocumentType, { 
   label: string; 
@@ -41,18 +45,51 @@ const documentTypeConfig: Record<DocumentType, {
 
 type FilterType = "all" | DocumentType;
 
+function useDocuments() {
+  const { user } = useAuth();
+  
+  return useQuery({
+    queryKey: ['documents', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      const { data: profiles } = await supabase
+        .from('patient_profiles')
+        .select('id')
+        .eq('user_id', user.id);
+      
+      if (!profiles?.length) return [];
+      
+      const profileIds = profiles.map(p => p.id);
+      
+      const { data, error } = await supabase
+        .from('documents')
+        .select(`
+          *,
+          practitioner:practitioners(first_name, last_name)
+        `)
+        .in('patient_profile_id', profileIds)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+}
+
 export default function DocumentsPage() {
-  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const { data: documents, isLoading } = useDocuments();
 
-  const filteredDocuments = documents.filter((doc) => {
+  const filteredDocuments = documents?.filter((doc) => {
     const matchesFilter = activeFilter === "all" || doc.type === activeFilter;
     const matchesSearch = !searchQuery || 
       doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.practitioner?.lastName.toLowerCase().includes(searchQuery.toLowerCase());
+      doc.practitioner?.last_name?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
-  });
+  }) || [];
 
   const filters: { value: FilterType; label: string }[] = [
     { value: "all", label: "Tout" },
@@ -61,7 +98,8 @@ export default function DocumentsPage() {
     { value: "report", label: "Comptes-rendus" },
   ];
 
-  const formatFileSize = (bytes: number) => {
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return "";
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -69,20 +107,28 @@ export default function DocumentsPage() {
 
   return (
     <>
-      <PageContainer noPadding>
+      <PageContainer noPadding className="overflow-x-hidden">
         <Header title="Mes documents" showBack />
         
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 max-w-lg mx-auto">
           {/* Search */}
           <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground shrink-0" />
             <input
               type="text"
-              placeholder="Rechercher un document..."
+              placeholder="Rechercher..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-11 pl-10 pr-4 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              className="w-full h-11 pl-10 pr-10 rounded-xl border border-border bg-card text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           {/* Filters */}
@@ -92,7 +138,7 @@ export default function DocumentsPage() {
                 key={filter.value}
                 onClick={() => setActiveFilter(filter.value)}
                 className={cn(
-                  "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all",
+                  "px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all min-h-[36px]",
                   activeFilter === filter.value
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:text-foreground"
@@ -104,7 +150,21 @@ export default function DocumentsPage() {
           </div>
 
           {/* Documents List */}
-          {filteredDocuments.length === 0 ? (
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="p-3 sm:p-4">
+                  <div className="flex gap-3">
+                    <Skeleton className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <Skeleton className="h-5 w-40 mb-1" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : filteredDocuments.length === 0 ? (
             <EmptyState
               icon={FileText}
               title="Aucun document"
@@ -117,33 +177,35 @@ export default function DocumentsPage() {
                 const TypeIcon = typeConfig.icon;
                 
                 return (
-                  <Card key={doc.id} className="p-4">
+                  <Card key={doc.id} className="p-3 sm:p-4">
                     <div className="flex gap-3">
                       <div 
-                        className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0"
                         style={{ backgroundColor: `${typeConfig.color}15` }}
                       >
                         <TypeIcon 
-                          className="h-6 w-6" 
+                          className="h-5 w-5 sm:h-6 sm:w-6" 
                           style={{ color: typeConfig.color }}
                         />
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground line-clamp-1">
+                        <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">
                           {doc.name}
                         </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {doc.practitioner && `Dr. ${doc.practitioner.lastName} • `}
-                          {doc.issuedAt && format(new Date(doc.issuedAt), "d MMM yyyy", { locale: fr })}
+                        <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                          {doc.practitioner && `Dr. ${doc.practitioner.last_name} • `}
+                          {doc.issued_at && format(new Date(doc.issued_at), "d MMM yyyy", { locale: fr })}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="muted" className="text-xs">
+                          <Badge variant="muted" className="text-[10px] sm:text-xs">
                             {typeConfig.label}
                           </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {formatFileSize(doc.size)}
-                          </span>
+                          {doc.size && (
+                            <span className="text-[10px] sm:text-xs text-muted-foreground">
+                              {formatFileSize(doc.size)}
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -151,14 +213,24 @@ export default function DocumentsPage() {
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          onClick={() => console.log("View", doc.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(doc.file_url, '_blank');
+                          }}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          onClick={() => console.log("Download", doc.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Download logic
+                            const link = document.createElement('a');
+                            link.href = doc.file_url;
+                            link.download = doc.name;
+                            link.click();
+                          }}
                         >
                           <Download className="h-4 w-4" />
                         </Button>

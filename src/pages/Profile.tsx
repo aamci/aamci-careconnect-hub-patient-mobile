@@ -18,7 +18,8 @@ import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/common/Card";
 import { Avatar } from "@/components/common/Avatar";
 import { Button } from "@/components/ui/button";
-import { currentUserProfile, userProfiles } from "@/data/mockData";
+import { Skeleton } from "@/components/ui/skeleton";
+import { usePatientProfiles } from "@/hooks/usePatientProfiles";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,10 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { toast } = useToast();
+  const { data: profiles, isLoading: profilesLoading } = usePatientProfiles();
+  
+  const currentProfile = profiles?.find(p => p.profile_type === 'self') || profiles?.[0];
+  const profileCount = profiles?.length || 0;
 
   const handleSignOut = async () => {
     await signOut();
@@ -70,7 +75,7 @@ export default function ProfilePage() {
         { 
           icon: Users, 
           label: "Profils gérés", 
-          description: `${userProfiles.length} profil${userProfiles.length > 1 ? 's' : ''}`,
+          description: `${profileCount} profil${profileCount > 1 ? 's' : ''}`,
           path: "/profile/managed" 
         },
         { 
@@ -121,7 +126,7 @@ export default function ProfilePage() {
 
   return (
     <>
-      <PageContainer noPadding>
+      <PageContainer noPadding className="overflow-x-hidden">
         <Header 
           title="Mon profil" 
           rightElement={
@@ -135,28 +140,44 @@ export default function ProfilePage() {
           }
         />
         
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 max-w-lg mx-auto">
           {/* Profile Card */}
-          <Card className="p-4 mb-6">
-            <div className="flex items-center gap-4">
-              <Avatar
-                src={currentUserProfile.avatarUrl}
-                alt={`${currentUserProfile.firstName} ${currentUserProfile.lastName}`}
-                size="xl"
-              />
-              <div className="flex-1">
-                <h2 className="text-xl font-bold font-display">
-                  {currentUserProfile.firstName} {currentUserProfile.lastName}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {user?.email || currentUserProfile.email}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {currentUserProfile.phone}
-                </p>
+          {profilesLoading ? (
+            <Card className="p-4 mb-6">
+              <div className="flex items-center gap-4">
+                <Skeleton className="w-16 h-16 rounded-full shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <Skeleton className="h-6 w-32 mb-2" />
+                  <Skeleton className="h-4 w-48 mb-1" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          ) : (
+            <Card className="p-4 mb-6">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <Avatar
+                  src={currentProfile?.avatar_url || undefined}
+                  alt={currentProfile ? `${currentProfile.first_name} ${currentProfile.last_name}` : 'User'}
+                  size="xl"
+                  className="shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg sm:text-xl font-bold font-display truncate">
+                    {currentProfile?.first_name} {currentProfile?.last_name}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                    {user?.email}
+                  </p>
+                  {currentProfile?.phone && (
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                      {currentProfile.phone}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Menu Sections */}
           <div className="space-y-6">
@@ -177,38 +198,38 @@ export default function ProfilePage() {
                         key={itemIndex}
                         onClick={() => item.path ? navigate(item.path) : item.onClick?.()}
                         className={cn(
-                          "w-full flex items-center gap-3 p-4 transition-colors",
+                          "w-full flex items-center gap-3 p-3 sm:p-4 transition-colors min-h-[56px]",
                           isDestructive 
                             ? "text-destructive hover:bg-destructive/5" 
                             : "hover:bg-muted/50"
                         )}
                       >
                         <div className={cn(
-                          "w-10 h-10 rounded-xl flex items-center justify-center",
+                          "w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0",
                           isDestructive 
                             ? "bg-destructive/10" 
                             : "bg-primary/10"
                         )}>
                           <Icon className={cn(
-                            "h-5 w-5",
+                            "h-4 w-4 sm:h-5 sm:w-5",
                             isDestructive ? "text-destructive" : "text-primary"
                           )} />
                         </div>
-                        <div className="flex-1 text-left">
+                        <div className="flex-1 text-left min-w-0">
                           <p className={cn(
-                            "font-medium",
+                            "font-medium text-sm sm:text-base truncate",
                             isDestructive ? "text-destructive" : "text-foreground"
                           )}>
                             {item.label}
                           </p>
                           {item.description && (
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
                               {item.description}
                             </p>
                           )}
                         </div>
                         {!isDestructive && (
-                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                          <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0" />
                         )}
                       </button>
                     );
@@ -221,17 +242,17 @@ export default function ProfilePage() {
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Card variant="flat" className="overflow-hidden">
-                  <button className="w-full flex items-center gap-3 p-4 transition-colors text-destructive hover:bg-destructive/5">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-destructive/10">
-                      <LogOut className="h-5 w-5 text-destructive" />
+                  <button className="w-full flex items-center gap-3 p-3 sm:p-4 transition-colors text-destructive hover:bg-destructive/5 min-h-[56px]">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-destructive/10 shrink-0">
+                      <LogOut className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
                     </div>
                     <div className="flex-1 text-left">
-                      <p className="font-medium text-destructive">Déconnexion</p>
+                      <p className="font-medium text-destructive text-sm sm:text-base">Déconnexion</p>
                     </div>
                   </button>
                 </Card>
               </AlertDialogTrigger>
-              <AlertDialogContent>
+              <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Se déconnecter ?</AlertDialogTitle>
                   <AlertDialogDescription>

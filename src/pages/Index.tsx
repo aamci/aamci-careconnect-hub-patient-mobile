@@ -13,8 +13,7 @@ import {
   Heart,
   Baby,
   Activity,
-  Brain,
-  Loader2
+  Brain
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -62,21 +61,21 @@ export default function Index() {
   const formatAppointmentDate = (date: Date) => {
     if (isToday(date)) return "Aujourd'hui";
     if (isTomorrow(date)) return "Demain";
-    return format(date, "EEEE d MMMM", { locale: fr });
+    return format(date, "EEE d MMM", { locale: fr });
   };
 
   const firstName = currentProfile?.first_name || user?.email?.split('@')[0] || 'Patient';
 
   return (
     <>
-      <PageContainer noPadding>
+      <PageContainer noPadding className="overflow-x-hidden">
         {/* Header */}
         <div className="bg-gradient-hero">
-          <div className="px-4 pt-6 pb-4">
-            <div className="flex items-center justify-between mb-6">
-              <div>
+          <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm text-muted-foreground">Bonjour,</p>
-                <h1 className="text-2xl font-bold font-display text-foreground">
+                <h1 className="text-xl sm:text-2xl font-bold font-display text-foreground truncate">
                   {firstName} 👋
                 </h1>
               </div>
@@ -85,39 +84,40 @@ export default function Index() {
                 alt={firstName}
                 size="lg"
                 onClick={() => navigate("/profile")}
+                className="shrink-0"
               />
             </div>
 
             {/* Search Bar */}
             <button
               onClick={() => navigate("/search")}
-              className="w-full flex items-center gap-3 bg-card rounded-xl px-4 py-3.5 shadow-card border border-border/50 transition-all hover:shadow-lg"
+              className="w-full flex items-center gap-3 bg-card rounded-xl px-4 py-3.5 shadow-card border border-border/50 transition-all hover:shadow-lg active:scale-[0.99]"
             >
-              <Search className="h-5 w-5 text-muted-foreground" />
-              <span className="text-muted-foreground text-left flex-1">
-                Rechercher un praticien, spécialité...
+              <Search className="h-5 w-5 text-muted-foreground shrink-0" />
+              <span className="text-muted-foreground text-left flex-1 text-sm sm:text-base truncate">
+                Rechercher un praticien...
               </span>
             </button>
           </div>
         </div>
 
-        <div className="px-4 space-y-6 pb-4">
+        <div className="px-4 space-y-6 pb-4 max-w-lg mx-auto">
           {/* Quick Actions */}
           <div className="grid grid-cols-2 gap-3">
             <Button
               variant="medical-outline"
-              className="h-auto py-4 flex-col gap-2"
+              className="h-auto py-4 flex-col gap-2 min-h-[72px]"
               onClick={() => navigate("/search")}
             >
-              <Calendar className="h-5 w-5" />
+              <Calendar className="h-5 w-5 shrink-0" />
               <span className="text-sm font-medium">Prendre RDV</span>
             </Button>
             <Button
               variant="soft"
-              className="h-auto py-4 flex-col gap-2"
+              className="h-auto py-4 flex-col gap-2 min-h-[72px]"
               onClick={() => navigate("/search?teleconsult=true")}
             >
-              <Video className="h-5 w-5" />
+              <Video className="h-5 w-5 shrink-0" />
               <span className="text-sm font-medium">Téléconsulter</span>
             </Button>
           </div>
@@ -130,12 +130,12 @@ export default function Index() {
             </section>
           ) : upcomingAppointments.length > 0 && (
             <section>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold font-display">Prochains rendez-vous</h2>
+              <div className="flex items-center justify-between mb-3 gap-2">
+                <h2 className="text-lg font-semibold font-display truncate">Prochains RDV</h2>
                 <Button 
                   variant="ghost" 
                   size="sm"
-                  className="text-primary"
+                  className="text-primary shrink-0"
                   onClick={() => navigate("/appointments")}
                 >
                   Voir tout
@@ -148,34 +148,35 @@ export default function Index() {
                   <Card 
                     key={appointment.id} 
                     hover
-                    className="p-4"
+                    className="p-3 sm:p-4"
                     onClick={() => navigate(`/appointments/${appointment.id}`)}
                   >
                     <div className="flex gap-3">
                       <Avatar
                         src={appointment.practitioner?.avatar_url || undefined}
                         alt={`${appointment.practitioner?.first_name} ${appointment.practitioner?.last_name}`}
-                        size="lg"
+                        size="md"
+                        className="shrink-0"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h3 className="font-semibold text-foreground">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">
                               Dr. {appointment.practitioner?.first_name} {appointment.practitioner?.last_name}
                             </h3>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
                               {appointment.practitioner?.specialty?.name}
                             </p>
                           </div>
                           {appointment.type === 'teleconsultation' && (
-                            <Badge variant="info" icon={<Video className="h-3 w-3" />}>
-                              Vidéo
+                            <Badge variant="info" icon={<Video className="h-3 w-3" />} className="shrink-0">
+                              <span className="hidden xs:inline">Vidéo</span>
                             </Badge>
                           )}
                         </div>
-                        <div className="flex items-center gap-4 mt-2 text-sm">
-                          <span className="flex items-center gap-1 text-primary font-medium">
-                            <Clock className="h-3.5 w-3.5" />
+                        <div className="flex items-center gap-1 mt-2 text-xs sm:text-sm">
+                          <Clock className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="text-primary font-medium truncate">
                             {formatAppointmentDate(new Date(appointment.scheduled_at))} à {format(new Date(appointment.scheduled_at), "HH:mm")}
                           </span>
                         </div>
@@ -189,12 +190,12 @@ export default function Index() {
 
           {/* Specialties */}
           <section>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 gap-2">
               <h2 className="text-lg font-semibold font-display">Spécialités</h2>
               <Button 
                 variant="ghost" 
                 size="sm"
-                className="text-primary"
+                className="text-primary shrink-0"
                 onClick={() => navigate("/search")}
               >
                 Voir tout
@@ -205,32 +206,32 @@ export default function Index() {
             {specialtiesLoading ? (
               <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex flex-col items-center gap-2 min-w-[80px]">
-                    <Skeleton className="w-14 h-14 rounded-2xl" />
+                  <div key={i} className="flex flex-col items-center gap-2 min-w-[70px]">
+                    <Skeleton className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl" />
                     <Skeleton className="h-3 w-12" />
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+              <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
                 {specialties?.slice(0, 6).map((specialty) => {
                   const Icon = specialtyIcons[specialty.icon || 'stethoscope'] || Stethoscope;
                   return (
                     <button
                       key={specialty.id}
                       onClick={() => navigate(`/search?specialty=${specialty.id}`)}
-                      className="flex flex-col items-center gap-2 min-w-[80px] group"
+                      className="flex flex-col items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px] group"
                     >
                       <div 
-                        className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all group-hover:scale-105"
+                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center transition-all group-hover:scale-105 group-active:scale-95"
                         style={{ backgroundColor: `${specialty.color || '#0D9488'}15` }}
                       >
                         <Icon 
-                          className="h-6 w-6" 
+                          className="h-5 w-5 sm:h-6 sm:w-6" 
                           style={{ color: specialty.color || '#0D9488' }}
                         />
                       </div>
-                      <span className="text-xs text-center text-muted-foreground group-hover:text-foreground transition-colors line-clamp-2">
+                      <span className="text-[10px] sm:text-xs text-center text-muted-foreground group-hover:text-foreground transition-colors line-clamp-2 max-w-[70px] sm:max-w-[80px]">
                         {specialty.name}
                       </span>
                     </button>
@@ -242,17 +243,15 @@ export default function Index() {
 
           {/* Recommended Practitioners */}
           <section>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold font-display">Praticiens recommandés</h2>
-            </div>
+            <h2 className="text-lg font-semibold font-display mb-3">Praticiens recommandés</h2>
             
             {practitionersLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <Card key={i} className="p-4">
+                  <Card key={i} className="p-3 sm:p-4">
                     <div className="flex gap-3">
-                      <Skeleton className="w-12 h-12 rounded-full" />
-                      <div className="flex-1">
+                      <Skeleton className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0" />
+                      <div className="flex-1 min-w-0">
                         <Skeleton className="h-5 w-32 mb-1" />
                         <Skeleton className="h-4 w-24" />
                       </div>
@@ -266,40 +265,41 @@ export default function Index() {
                   <Card 
                     key={practitioner.id} 
                     hover
-                    className="p-4"
+                    className="p-3 sm:p-4"
                     onClick={() => navigate(`/practitioners/${practitioner.id}`)}
                   >
                     <div className="flex gap-3">
                       <Avatar
                         src={practitioner.avatar_url || undefined}
                         alt={`${practitioner.first_name} ${practitioner.last_name}`}
-                        size="lg"
+                        size="md"
+                        className="shrink-0"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h3 className="font-semibold text-foreground">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">
                               Dr. {practitioner.first_name} {practitioner.last_name}
                             </h3>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
                               {practitioner.specialty?.name}
                             </p>
                           </div>
-                          <div className="flex items-center gap-1 text-sm">
-                            <Star className="h-4 w-4 fill-warning text-warning" />
+                          <div className="flex items-center gap-1 text-xs sm:text-sm shrink-0">
+                            <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-warning text-warning" />
                             <span className="font-medium">{practitioner.rating}</span>
-                            <span className="text-muted-foreground">({practitioner.review_count})</span>
+                            <span className="text-muted-foreground hidden sm:inline">({practitioner.review_count})</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 mt-2">
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
                           {practitioner.teleconsultation_enabled && (
-                            <Badge variant="info" icon={<Video className="h-3 w-3" />}>
-                              Téléconsultation
+                            <Badge variant="info" icon={<Video className="h-3 w-3" />} className="text-[10px] sm:text-xs">
+                              Vidéo
                             </Badge>
                           )}
                           {practitioner.next_availability && (
-                            <span className="text-xs text-success font-medium">
-                              Dispo. {isToday(new Date(practitioner.next_availability)) ? "aujourd'hui" : "bientôt"}
+                            <span className="text-[10px] sm:text-xs text-success font-medium">
+                              Dispo. {isToday(new Date(practitioner.next_availability)) ? "auj." : "bientôt"}
                             </span>
                           )}
                         </div>
