@@ -13,7 +13,9 @@ import {
   Heart,
   Baby,
   Activity,
-  Brain
+  Brain,
+  History,
+  FileText
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -120,6 +122,31 @@ export default function Index() {
               <Video className="h-5 w-5 shrink-0" />
               <span className="text-sm font-medium">Téléconsulter</span>
             </Button>
+          </div>
+
+          {/* Secondary Actions */}
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => navigate("/documents")}
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors min-h-[64px]"
+            >
+              <FileText className="h-5 w-5 text-primary" />
+              <span className="text-xs text-muted-foreground">Documents</span>
+            </button>
+            <button
+              onClick={() => navigate("/history")}
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors min-h-[64px]"
+            >
+              <History className="h-5 w-5 text-primary" />
+              <span className="text-xs text-muted-foreground">Historique</span>
+            </button>
+            <button
+              onClick={() => navigate("/favorites")}
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors min-h-[64px]"
+            >
+              <Heart className="h-5 w-5 text-primary" />
+              <span className="text-xs text-muted-foreground">Favoris</span>
+            </button>
           </div>
 
           {/* Upcoming Appointments */}
