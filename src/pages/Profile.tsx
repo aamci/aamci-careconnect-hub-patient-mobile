@@ -10,7 +10,8 @@ import {
   ChevronRight,
   Settings,
   Heart,
-  Plus
+  Plus,
+  History
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -89,6 +90,12 @@ export default function ProfilePage() {
           label: "Mes favoris", 
           description: "Praticiens favoris",
           path: "/favorites" 
+        },
+        { 
+          icon: History, 
+          label: "Historique médical", 
+          description: "Consultations, prescriptions",
+          path: "/history" 
         },
       ],
     },

@@ -9,7 +9,11 @@ import {
   Stethoscope,
   Receipt,
   File,
-  X
+  X,
+  Plus,
+  Upload,
+  Loader2,
+  Trash2
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -19,12 +23,30 @@ import { Card } from "@/components/common/Card";
 import { Badge } from "@/components/common/Badge";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useDocuments, useDeleteDocument } from "@/hooks/useDocuments";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 
 type DocumentType = Database["public"]["Enums"]["document_type"];
@@ -34,54 +56,24 @@ const documentTypeConfig: Record<DocumentType, {
   icon: React.ElementType; 
   color: string;
 }> = {
-  prescription: { label: "Ordonnance", icon: Pill, color: "#0891b2" },
-  lab_result: { label: "Analyse", icon: TestTube, color: "#7c3aed" },
-  imaging: { label: "Imagerie", icon: Eye, color: "#3b82f6" },
-  report: { label: "Compte-rendu", icon: Stethoscope, color: "#22c55e" },
-  certificate: { label: "Certificat", icon: FileText, color: "#f59e0b" },
-  invoice: { label: "Facture", icon: Receipt, color: "#ec4899" },
-  other: { label: "Autre", icon: File, color: "#6b7280" },
+  prescription: { label: "Ordonnance", icon: Pill, color: "hsl(var(--chart-1))" },
+  lab_result: { label: "Analyse", icon: TestTube, color: "hsl(var(--chart-2))" },
+  imaging: { label: "Imagerie", icon: Eye, color: "hsl(var(--chart-3))" },
+  report: { label: "Compte-rendu", icon: Stethoscope, color: "hsl(var(--chart-4))" },
+  certificate: { label: "Certificat", icon: FileText, color: "hsl(var(--chart-5))" },
+  invoice: { label: "Facture", icon: Receipt, color: "hsl(var(--accent))" },
+  other: { label: "Autre", icon: File, color: "hsl(var(--muted-foreground))" },
 };
 
 type FilterType = "all" | DocumentType;
 
-function useDocuments() {
-  const { user } = useAuth();
-  
-  return useQuery({
-    queryKey: ['documents', user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      
-      const { data: profiles } = await supabase
-        .from('patient_profiles')
-        .select('id')
-        .eq('user_id', user.id);
-      
-      if (!profiles?.length) return [];
-      
-      const profileIds = profiles.map(p => p.id);
-      
-      const { data, error } = await supabase
-        .from('documents')
-        .select(`
-          *,
-          practitioner:practitioners(first_name, last_name)
-        `)
-        .in('patient_profile_id', profileIds)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user,
-  });
-}
-
 export default function DocumentsPage() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
   const { data: documents, isLoading } = useDocuments();
+  const deleteDocument = useDeleteDocument();
+  const { toast } = useToast();
 
   const filteredDocuments = documents?.filter((doc) => {
     const matchesFilter = activeFilter === "all" || doc.type === activeFilter;
@@ -96,6 +88,7 @@ export default function DocumentsPage() {
     { value: "prescription", label: "Ordonnances" },
     { value: "lab_result", label: "Analyses" },
     { value: "report", label: "Comptes-rendus" },
+    { value: "certificate", label: "Certificats" },
   ];
 
   const formatFileSize = (bytes: number | null) => {
@@ -105,10 +98,70 @@ export default function DocumentsPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const handleDelete = async (docId: string) => {
+    try {
+      await deleteDocument.mutateAsync(docId);
+      toast({
+        title: "Document supprimé",
+        description: "Le document a été supprimé avec succès",
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer le document",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Group documents by month
+  const groupedDocuments = filteredDocuments.reduce((acc, doc) => {
+    const monthKey = format(new Date(doc.created_at), "MMMM yyyy", { locale: fr });
+    if (!acc[monthKey]) {
+      acc[monthKey] = [];
+    }
+    acc[monthKey].push(doc);
+    return acc;
+  }, {} as Record<string, typeof filteredDocuments>);
+
   return (
     <>
       <PageContainer noPadding className="overflow-x-hidden">
-        <Header title="Mes documents" showBack />
+        <Header 
+          title="Mes documents" 
+          showBack 
+          rightElement={
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="soft" size="icon-sm">
+                  <Plus className="h-5 w-5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="mx-4 max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Ajouter un document</DialogTitle>
+                  <DialogDescription>
+                    Téléversez vos documents médicaux pour les conserver en sécurité
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">
+                    <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Glissez vos fichiers ici ou
+                    </p>
+                    <Button variant="outline" size="sm">
+                      Parcourir
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      PDF, JPG, PNG jusqu'à 10 Mo
+                    </p>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          }
+        />
         
         <div className="px-4 pb-4 max-w-lg mx-auto">
           {/* Search */}
@@ -124,7 +177,7 @@ export default function DocumentsPage() {
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -169,76 +222,120 @@ export default function DocumentsPage() {
               icon={FileText}
               title="Aucun document"
               description="Vos documents médicaux apparaîtront ici"
+              action={{
+                label: "Ajouter un document",
+                onClick: () => {},
+              }}
             />
           ) : (
-            <div className="space-y-3">
-              {filteredDocuments.map((doc) => {
-                const typeConfig = documentTypeConfig[doc.type];
-                const TypeIcon = typeConfig.icon;
-                
-                return (
-                  <Card key={doc.id} className="p-3 sm:p-4">
-                    <div className="flex gap-3">
-                      <div 
-                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: `${typeConfig.color}15` }}
-                      >
-                        <TypeIcon 
-                          className="h-5 w-5 sm:h-6 sm:w-6" 
-                          style={{ color: typeConfig.color }}
-                        />
-                      </div>
+            <div className="space-y-6">
+              {Object.entries(groupedDocuments).map(([month, docs]) => (
+                <div key={month}>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3 capitalize">
+                    {month}
+                  </h3>
+                  <div className="space-y-3">
+                    {docs.map((doc) => {
+                      const typeConfig = documentTypeConfig[doc.type];
+                      const TypeIcon = typeConfig.icon;
                       
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">
-                          {doc.name}
-                        </h3>
-                        <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                          {doc.practitioner && `Dr. ${doc.practitioner.last_name} • `}
-                          {doc.issued_at && format(new Date(doc.issued_at), "d MMM yyyy", { locale: fr })}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="muted" className="text-[10px] sm:text-xs">
-                            {typeConfig.label}
-                          </Badge>
-                          {doc.size && (
-                            <span className="text-[10px] sm:text-xs text-muted-foreground">
-                              {formatFileSize(doc.size)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                      return (
+                        <Card key={doc.id} className="p-3 sm:p-4">
+                          <div className="flex gap-3">
+                            <div 
+                              className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: `${typeConfig.color}15` }}
+                            >
+                              <TypeIcon 
+                                className="h-5 w-5 sm:h-6 sm:w-6" 
+                                style={{ color: typeConfig.color }}
+                              />
+                            </div>
+                            
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">
+                                {doc.name}
+                              </h3>
+                              <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                                {doc.practitioner && `Dr. ${doc.practitioner.last_name} • `}
+                                {doc.issued_at && format(new Date(doc.issued_at), "d MMM yyyy", { locale: fr })}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="muted" className="text-[10px] sm:text-xs">
+                                  {typeConfig.label}
+                                </Badge>
+                                {doc.size && (
+                                  <span className="text-[10px] sm:text-xs text-muted-foreground">
+                                    {formatFileSize(doc.size)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
 
-                      <div className="flex gap-1 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(doc.file_url, '_blank');
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // Download logic
-                            const link = document.createElement('a');
-                            link.href = doc.file_url;
-                            link.download = doc.name;
-                            link.click();
-                          }}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
+                            <div className="flex gap-1 shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(doc.file_url, '_blank');
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const link = document.createElement('a');
+                                  link.href = doc.file_url;
+                                  link.download = doc.name;
+                                  link.click();
+                                }}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    className="text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="mx-4 max-w-sm">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Supprimer ce document ?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Cette action est irréversible. Le document sera définitivement supprimé.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                                    <AlertDialogCancel className="w-full sm:w-auto">Annuler</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => handleDelete(doc.id)}
+                                      className="w-full sm:w-auto bg-destructive hover:bg-destructive/90"
+                                    >
+                                      {deleteDocument.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        "Supprimer"
+                                      )}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -31,6 +31,7 @@ import ProfileInfo from "./pages/ProfileInfo";
 import ManagedProfiles from "./pages/ManagedProfiles";
 import Help from "./pages/Help";
 import Favorites from "./pages/Favorites";
+import History from "./pages/History";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ const App = () => (
             <Route path="/profile/edit/:id" element={<ProtectedRoute><ProfileInfo /></ProtectedRoute>} />
             <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
             <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
+            <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
             <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
             <Route path="/practitioners/:id" element={<ProtectedRoute><PractitionerDetail /></ProtectedRoute>} />
             <Route path="/booking/:practitionerId" element={<ProtectedRoute><Booking /></ProtectedRoute>} />

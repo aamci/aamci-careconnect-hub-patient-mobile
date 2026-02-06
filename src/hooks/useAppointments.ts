@@ -3,6 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Practitioner, Facility } from "./usePractitioners";
 
+export interface PatientProfile {
+  id: string;
+  first_name: string;
+  last_name: string;
+}
+
 export interface Appointment {
   id: string;
   patient_profile_id: string;
@@ -21,6 +27,7 @@ export interface Appointment {
   updated_at: string;
   practitioner?: Practitioner;
   facility?: Facility;
+  patient_profile?: PatientProfile;
 }
 
 export function useAppointments() {
@@ -52,7 +59,8 @@ export function useAppointments() {
             *,
             specialty:specialties(*)
           ),
-          facility:facilities(*)
+          facility:facilities(*),
+          patient_profile:patient_profiles(id, first_name, last_name)
         `)
         .in("patient_profile_id", profileIds)
         .order("scheduled_at", { ascending: true });
@@ -122,7 +130,7 @@ export function useCancelAppointment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, reason }: { id: string; reason?: string }) => {
+    mutationFn: async ({ appointmentId, reason }: { appointmentId: string; reason?: string }) => {
       const { data, error } = await supabase
         .from("appointments")
         .update({
@@ -130,7 +138,7 @@ export function useCancelAppointment() {
           cancellation_reason: reason,
           cancelled_at: new Date().toISOString(),
         })
-        .eq("id", id)
+        .eq("id", appointmentId)
         .select()
         .single();
 
@@ -139,7 +147,7 @@ export function useCancelAppointment() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
-      queryClient.invalidateQueries({ queryKey: ["appointment", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["appointment", variables.appointmentId] });
     },
   });
 }
