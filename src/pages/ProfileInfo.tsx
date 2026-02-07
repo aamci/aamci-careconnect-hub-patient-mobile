@@ -21,16 +21,17 @@ export default function ProfileInfoPage() {
   
   const currentProfile = profiles?.find(p => p.profile_type === 'self') || profiles?.[0];
   
-  const [firstName, setFirstName] = useState(currentProfile?.first_name || "");
-  const [lastName, setLastName] = useState(currentProfile?.last_name || "");
-  const [phone, setPhone] = useState(currentProfile?.phone || "");
-  const [birthDate, setBirthDate] = useState(currentProfile?.birth_date || "");
-  const [street, setStreet] = useState(currentProfile?.street || "");
-  const [city, setCity] = useState(currentProfile?.city || "");
-  const [postalCode, setPostalCode] = useState(currentProfile?.postal_code || "");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [street, setStreet] = useState("");
+  const [city, setCity] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [initialized, setInitialized] = useState(false);
 
   // Update state when profile loads
-  if (currentProfile && !firstName && currentProfile.first_name) {
+  if (currentProfile && !initialized) {
     setFirstName(currentProfile.first_name);
     setLastName(currentProfile.last_name);
     setPhone(currentProfile.phone || "");
@@ -38,6 +39,7 @@ export default function ProfileInfoPage() {
     setStreet(currentProfile.street || "");
     setCity(currentProfile.city || "");
     setPostalCode(currentProfile.postal_code || "");
+    setInitialized(true);
   }
 
   const handleSave = async () => {
