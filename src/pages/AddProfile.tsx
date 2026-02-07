@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Baby, Users } from "lucide-react";
+import { ArrowLeft, User, Baby, Users, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Card } from "@/components/common/Card";
+import { useCreateProfile } from "@/hooks/usePatientProfiles";
 import { useToast } from "@/hooks/use-toast";
 
 type ProfileType = "child" | "dependent";
@@ -15,28 +16,44 @@ type ProfileType = "child" | "dependent";
 export default function AddProfilePage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const createProfile = useCreateProfile();
 
   const [profileType, setProfileType] = useState<ProfileType>("child");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [birthDate, setBirthDate] = useState("");
-  const [gender, setGender] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [gender, setGender] = useState<"male" | "female" | "other" | "">("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    
+    if (!firstName || !lastName) {
+      toast({ variant: "destructive", title: "Erreur", description: "Prénom et nom sont obligatoires" });
+      return;
+    }
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      await createProfile.mutateAsync({
+        first_name: firstName,
+        last_name: lastName,
+        birth_date: birthDate || null,
+        gender: gender || null,
+        profile_type: profileType,
+      });
 
-    toast({
-      title: "Profil créé",
-      description: `Le profil de ${firstName} a été ajouté avec succès`,
-    });
+      toast({
+        title: "Profil créé",
+        description: `Le profil de ${firstName} a été ajouté avec succès`,
+      });
 
-    setLoading(false);
-    navigate("/profile");
+      navigate("/profile/managed");
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de créer le profil. Veuillez réessayer.",
+      });
+    }
   };
 
   const profileTypes = [
@@ -59,14 +76,14 @@ export default function AddProfilePage() {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b">
         <div className="flex items-center gap-4 px-4 py-3">
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2 hover:bg-muted rounded-full">
+          <button onClick={() => navigate(-1)} className="p-2 -ml-2 hover:bg-muted rounded-full min-w-[44px] min-h-[44px] flex items-center justify-center">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <h1 className="text-lg font-semibold">Ajouter un profil</h1>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="px-4 py-6 space-y-6">
+      <form onSubmit={handleSubmit} className="px-4 py-6 space-y-6 max-w-lg mx-auto">
         {/* Profile Type */}
         <div className="space-y-3">
           <Label>Type de profil</Label>
@@ -89,7 +106,7 @@ export default function AddProfilePage() {
                       profileType === type.value ? "text-primary" : "text-muted-foreground"
                     }`} />
                   </div>
-                  <p className="font-medium">{type.label}</p>
+                  <p className="font-medium text-sm">{type.label}</p>
                   <p className="text-xs text-muted-foreground">{type.description}</p>
                 </div>
               </Card>
@@ -104,7 +121,7 @@ export default function AddProfilePage() {
             Informations personnelles
           </h3>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="firstName">Prénom *</Label>
               <Input
@@ -113,6 +130,7 @@ export default function AddProfilePage() {
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="Prénom"
                 required
+                className="h-11"
               />
             </div>
             <div className="space-y-2">
@@ -123,24 +141,25 @@ export default function AddProfilePage() {
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Nom"
                 required
+                className="h-11"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="birthDate">Date de naissance *</Label>
+            <Label htmlFor="birthDate">Date de naissance</Label>
             <Input
               id="birthDate"
               type="date"
               value={birthDate}
               onChange={(e) => setBirthDate(e.target.value)}
-              required
+              className="h-11"
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Genre *</Label>
-            <RadioGroup value={gender} onValueChange={setGender} className="flex gap-4">
+            <Label>Genre</Label>
+            <RadioGroup value={gender} onValueChange={(v) => setGender(v as any)} className="flex gap-4">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="male" id="male" />
                 <Label htmlFor="male" className="font-normal">Masculin</Label>
@@ -155,28 +174,18 @@ export default function AddProfilePage() {
               </div>
             </RadioGroup>
           </div>
-
-          {profileType === "dependent" && (
-            <div className="space-y-2">
-              <Label htmlFor="relationship">Lien de parenté</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="parent">Parent</SelectItem>
-                  <SelectItem value="spouse">Conjoint(e)</SelectItem>
-                  <SelectItem value="sibling">Frère/Sœur</SelectItem>
-                  <SelectItem value="other">Autre</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
         </Card>
 
         <div className="pt-4">
-          <Button type="submit" className="w-full" size="lg" disabled={loading}>
-            {loading ? "Création en cours..." : "Créer le profil"}
+          <Button type="submit" className="w-full" size="lg" disabled={createProfile.isPending}>
+            {createProfile.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Création en cours...
+              </>
+            ) : (
+              "Créer le profil"
+            )}
           </Button>
         </div>
 

@@ -23,15 +23,17 @@ import { format, addDays, isToday, isTomorrow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
-// Generate time slots for a given date
-const generateTimeSlots = (date: Date) => {
+// Deterministic time slots based on date + practitioner id
+const generateTimeSlots = (date: Date, practitionerId?: string) => {
   const slots = [];
   const hours = [9, 10, 11, 14, 15, 16, 17];
+  const seed = date.getDate() + date.getMonth() * 31 + (practitionerId?.charCodeAt(0) || 0);
   
   for (const hour of hours) {
     for (const minute of [0, 30]) {
-      // Randomly make some slots unavailable
-      const available = Math.random() > 0.3;
+      // Deterministic availability based on seed
+      const hash = (seed * 31 + hour * 7 + minute) % 10;
+      const available = hash > 2; // ~70% availability
       slots.push({
         time: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
         available
@@ -91,7 +93,7 @@ export default function PractitionerDetailPage() {
     );
   }
 
-  const timeSlots = generateTimeSlots(selectedDate);
+  const timeSlots = generateTimeSlots(selectedDate, id);
   const availableSlots = timeSlots.filter(s => s.available);
 
   const dates = Array.from({ length: 7 }, (_, i) => addDays(new Date(), i));
