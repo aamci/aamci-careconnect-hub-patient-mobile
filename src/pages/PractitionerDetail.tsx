@@ -11,6 +11,8 @@ import {
   Calendar,
   Loader2
 } from "lucide-react";
+import { useIsFavorite, useToggleFavorite } from "@/hooks/useFavorites";
+import { useToast } from "@/hooks/use-toast";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/common/Card";
@@ -44,7 +46,9 @@ export default function PractitionerDetailPage() {
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [isFavorite, setIsFavorite] = useState(false);
+  const { data: isFavorite } = useIsFavorite(id || '');
+  const toggleFavorite = useToggleFavorite();
+  const { toast } = useToast();
 
   const { data: practitioner, isLoading, error } = usePractitioner(id || '');
 
@@ -122,7 +126,15 @@ export default function PractitionerDetailPage() {
           {/* Actions */}
           <div className="absolute top-4 right-4 flex gap-2">
             <button
-              onClick={() => setIsFavorite(!isFavorite)}
+              onClick={async () => {
+                if (!id) return;
+                try {
+                  const result = await toggleFavorite.mutateAsync(id);
+                  toast({ title: result.action === 'added' ? "Ajouté aux favoris" : "Retiré des favoris" });
+                } catch {
+                  toast({ title: "Erreur", variant: "destructive" });
+                }
+              }}
               className="w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-lg touch-target"
               aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
             >

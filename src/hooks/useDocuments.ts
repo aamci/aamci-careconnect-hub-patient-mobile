@@ -63,9 +63,20 @@ export function useUploadDocument() {
     }) => {
       if (!user) throw new Error("Non authentifié");
       
-      // For now, create a placeholder URL since storage bucket isn't set up
-      // In production, you would upload to Supabase Storage
-      const fileUrl = URL.createObjectURL(file);
+      // Upload file to Supabase Storage
+      const filePath = `${user.id}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('medical-documents')
+        .upload(filePath, file);
+      
+      if (uploadError) throw uploadError;
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('medical-documents')
+        .getPublicUrl(filePath);
+      
+      const fileUrl = urlData.publicUrl;
       
       const { data, error } = await supabase
         .from('documents')
@@ -98,6 +109,21 @@ export function useDeleteDocument() {
   
   return useMutation({
     mutationFn: async (documentId: string) => {
+      // Get document info to delete from storage too
+      const { data: doc } = await supabase
+        .from('documents')
+        .select('file_url')
+        .eq('id', documentId)
+        .single();
+      
+      // Delete from storage if it's a supabase storage URL
+      if (doc?.file_url?.includes('medical-documents')) {
+        const path = doc.file_url.split('medical-documents/')[1];
+        if (path) {
+          await supabase.storage.from('medical-documents').remove([path]);
+        }
+      }
+      
       const { error } = await supabase
         .from('documents')
         .delete()

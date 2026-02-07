@@ -205,6 +205,35 @@ export type Database = {
         }
         Relationships: []
       }
+      favorites: {
+        Row: {
+          created_at: string
+          id: string
+          practitioner_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          practitioner_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          practitioner_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorites_practitioner_id_fkey"
+            columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_threads: {
         Row: {
           appointment_id: string | null
