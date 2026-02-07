@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { 
   FileText, 
   Download, 
@@ -23,7 +23,17 @@ import { Card } from "@/components/common/Card";
 import { Badge } from "@/components/common/Badge";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDocuments, useDeleteDocument } from "@/hooks/useDocuments";
+import { useDocuments, useUploadDocument, useDeleteDocument } from "@/hooks/useDocuments";
+import { usePatientProfiles } from "@/hooks/usePatientProfiles";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -71,9 +81,35 @@ export default function DocumentsPage() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadName, setUploadName] = useState("");
+  const [uploadType, setUploadType] = useState<DocumentType>("other");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { data: documents, isLoading } = useDocuments();
+  const { data: profiles } = usePatientProfiles();
+  const uploadDocument = useUploadDocument();
   const deleteDocument = useDeleteDocument();
   const { toast } = useToast();
+
+  const handleUpload = async () => {
+    if (!uploadFile || !uploadName || !profiles?.length) return;
+    try {
+      await uploadDocument.mutateAsync({
+        file: uploadFile,
+        name: uploadName,
+        type: uploadType,
+        patientProfileId: profiles[0].id,
+      });
+      toast({ title: "Document ajouté", description: "Le document a été téléversé avec succès" });
+      setUploadOpen(false);
+      setUploadFile(null);
+      setUploadName("");
+      setUploadType("other");
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de téléverser le document", variant: "destructive" });
+    }
+  };
 
   const filteredDocuments = documents?.filter((doc) => {
     const matchesFilter = activeFilter === "all" || doc.type === activeFilter;
@@ -131,7 +167,7 @@ export default function DocumentsPage() {
           title="Mes documents" 
           showBack 
           rightElement={
-            <Dialog>
+            <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
               <DialogTrigger asChild>
                 <Button variant="soft" size="icon-sm">
                   <Plus className="h-5 w-5" />
@@ -145,18 +181,81 @@ export default function DocumentsPage() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 pt-4">
-                  <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">
-                    <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Glissez vos fichiers ici ou
-                    </p>
-                    <Button variant="outline" size="sm">
-                      Parcourir
-                    </Button>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      PDF, JPG, PNG jusqu'à 10 Mo
-                    </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) {
+                        setUploadFile(f);
+                        if (!uploadName) setUploadName(f.name.replace(/\.[^.]+$/, ''));
+                      }
+                    }}
+                  />
+                  <div 
+                    className="border-2 border-dashed border-border rounded-xl p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {uploadFile ? (
+                      <div>
+                        <File className="h-10 w-10 text-primary mx-auto mb-2" />
+                        <p className="text-sm font-medium text-foreground truncate">{uploadFile.name}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {(uploadFile.size / (1024 * 1024)).toFixed(2)} Mo
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                        <p className="text-sm text-muted-foreground mb-1">
+                          Appuyez pour sélectionner un fichier
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          PDF, JPG, PNG jusqu'à 10 Mo
+                        </p>
+                      </>
+                    )}
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="doc-name">Nom du document</Label>
+                    <Input
+                      id="doc-name"
+                      value={uploadName}
+                      onChange={(e) => setUploadName(e.target.value)}
+                      placeholder="Ex: Ordonnance Dr. Martin"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Type de document</Label>
+                    <Select value={uploadType} onValueChange={(v) => setUploadType(v as DocumentType)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="prescription">Ordonnance</SelectItem>
+                        <SelectItem value="lab_result">Analyse</SelectItem>
+                        <SelectItem value="imaging">Imagerie</SelectItem>
+                        <SelectItem value="report">Compte-rendu</SelectItem>
+                        <SelectItem value="certificate">Certificat</SelectItem>
+                        <SelectItem value="invoice">Facture</SelectItem>
+                        <SelectItem value="other">Autre</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button 
+                    className="w-full" 
+                    disabled={!uploadFile || !uploadName || uploadDocument.isPending}
+                    onClick={handleUpload}
+                  >
+                    {uploadDocument.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
+                    )}
+                    Téléverser
+                  </Button>
                 </div>
               </DialogContent>
             </Dialog>
