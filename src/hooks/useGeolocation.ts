@@ -7,6 +7,25 @@ interface GeolocationState {
   loading: boolean;
 }
 
+function getGeolocationErrorMessage(err: GeolocationPositionError): string {
+  switch (err.code) {
+    case err.PERMISSION_DENIED:
+      return "Accès à la position refusé. Autorisez la localisation dans votre navigateur.";
+    case err.POSITION_UNAVAILABLE:
+      return "Position indisponible pour le moment.";
+    case err.TIMEOUT:
+      return "La localisation a expiré. Réessayez.";
+    default:
+      return "Impossible d'obtenir votre position.";
+  }
+}
+
+function getCurrentPosition(options: PositionOptions): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
+  });
+}
+
 export function useGeolocation() {
   const [state, setState] = useState<GeolocationState>({
     latitude: null,
@@ -15,39 +34,74 @@ export function useGeolocation() {
     loading: false,
   });
 
-  const requestLocation = useCallback(() => {
+  const requestLocation = useCallback(async () => {
     if (!navigator.geolocation) {
       setState((prev) => ({ ...prev, error: "Géolocalisation non supportée" }));
       return;
     }
 
+    if (!window.isSecureContext) {
+      setState((prev) => ({
+        ...prev,
+        error: "La géolocalisation nécessite une connexion sécurisée (HTTPS).",
+      }));
+      return;
+    }
+
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setState({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          error: null,
-          loading: false,
-        });
-      },
-      (err) => {
-        setState((prev) => ({
-          ...prev,
-          loading: false,
-          error:
-            err.code === 1
-              ? "Accès à la position refusé"
-              : "Impossible d'obtenir votre position",
-        }));
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
-    );
+    try {
+      const position = await getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 0,
+      });
+
+      setState({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        error: null,
+        loading: false,
+      });
+    } catch (firstError) {
+      const geoError = firstError as GeolocationPositionError;
+
+      if (geoError.code === geoError.TIMEOUT) {
+        try {
+          const fallbackPosition = await getCurrentPosition({
+            enableHighAccuracy: false,
+            timeout: 20000,
+            maximumAge: 300000,
+          });
+
+          setState({
+            latitude: fallbackPosition.coords.latitude,
+            longitude: fallbackPosition.coords.longitude,
+            error: null,
+            loading: false,
+          });
+          return;
+        } catch (fallbackError) {
+          setState((prev) => ({
+            ...prev,
+            loading: false,
+            error: getGeolocationErrorMessage(fallbackError as GeolocationPositionError),
+          }));
+          return;
+        }
+      }
+
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: getGeolocationErrorMessage(geoError),
+      }));
+    }
   }, []);
 
   return { ...state, requestLocation };
 }
+
 
 export function getDistanceKm(
   lat1: number,

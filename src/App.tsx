@@ -32,6 +32,7 @@ import ManagedProfiles from "./pages/ManagedProfiles";
 import Help from "./pages/Help";
 import Favorites from "./pages/Favorites";
 import History from "./pages/History";
+import HealthForm from "./pages/HealthForm";
 
 const queryClient = new QueryClient();
 
@@ -69,6 +70,7 @@ const App = () => (
             <Route path="/teleconsultation/:id" element={<ProtectedRoute><Teleconsultation /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/settings/notifications" element={<ProtectedRoute><NotificationSettings /></ProtectedRoute>} />
+            <Route path="/profile/health" element={<ProtectedRoute><HealthForm /></ProtectedRoute>} />
             
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
