@@ -11,7 +11,8 @@ import {
   Settings,
   Heart,
   Plus,
-  History
+  History,
+  ShieldPlus
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -90,6 +91,12 @@ export default function ProfilePage() {
           label: "Mes favoris", 
           description: "Praticiens favoris",
           path: "/favorites" 
+        },
+        {
+          icon: ShieldPlus,
+          label: "Formulaire de santé",
+          description: "Antécédents, allergies, traitements",
+          path: "/profile/health"
         },
         { 
           icon: History, 

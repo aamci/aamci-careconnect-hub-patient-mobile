@@ -22,7 +22,7 @@ export default function SearchPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [showMap, setShowMap] = useState(false);
 
-  const { latitude, longitude, loading: locationLoading, requestLocation } = useGeolocation();
+  const { latitude, longitude, error: locationError, loading: locationLoading, requestLocation } = useGeolocation();
 
   const { data: specialties, isLoading: specialtiesLoading } = useSpecialties();
   const { data: practitioners, isLoading: practitionersLoading } = usePractitioners({
@@ -90,9 +90,9 @@ export default function SearchPage() {
             }}
             onLocate={requestLocation}
             locationLoading={locationLoading}
+            locationError={locationError}
           />
 
-          {/* Map View */}
           {showMap && (
             <div className="mb-4 animate-fade-in">
               <PractitionerMap

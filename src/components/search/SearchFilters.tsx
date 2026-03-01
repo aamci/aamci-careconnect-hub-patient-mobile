@@ -31,13 +31,14 @@ interface Props {
   onToggleMap: () => void;
   onLocate: () => void;
   locationLoading: boolean;
+  locationError?: string | null;
 }
 
 export function SearchFilters({
   query, onQueryChange, teleconsultationOnly, onTeleconsultationToggle,
   showFilters, onToggleFilters, selectedSpecialty, onSpecialtyChange,
   specialties, specialtiesLoading, hasActiveFilters, onClearFilters,
-  showMap, onToggleMap, onLocate, locationLoading,
+  showMap, onToggleMap, onLocate, locationLoading, locationError,
 }: Props) {
   return (
     <>
@@ -99,6 +100,9 @@ export function SearchFilters({
               {locationLoading ? "Localisation..." : "Autour de moi"}
             </Button>
           </div>
+          {locationError && (
+            <p className="text-xs text-destructive mb-2">{locationError}</p>
+          )}
           {specialtiesLoading ? (
             <div className="flex flex-wrap gap-2">
               {[1, 2, 3, 4].map((i) => (
