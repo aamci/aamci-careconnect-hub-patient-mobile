@@ -33,6 +33,8 @@ import Help from "./pages/Help";
 import Favorites from "./pages/Favorites";
 import History from "./pages/History";
 import HealthForm from "./pages/HealthForm";
+import AIAssistant from "./pages/AIAssistant";
+import HealthContent from "./pages/HealthContent";
 
 const queryClient = new QueryClient();
 
@@ -71,6 +73,8 @@ const App = () => (
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/settings/notifications" element={<ProtectedRoute><NotificationSettings /></ProtectedRoute>} />
             <Route path="/profile/health" element={<ProtectedRoute><HealthForm /></ProtectedRoute>} />
+            <Route path="/assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
+            <Route path="/health-content" element={<ProtectedRoute><HealthContent /></ProtectedRoute>} />
             
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
