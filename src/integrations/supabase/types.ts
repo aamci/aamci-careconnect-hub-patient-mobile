@@ -234,6 +234,77 @@ export type Database = {
           },
         ]
       }
+      health_forms: {
+        Row: {
+          additional_notes: string | null
+          allergies: string | null
+          blood_type: string | null
+          chronic_conditions: string | null
+          created_at: string
+          current_medications: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relation: string | null
+          family_history: string | null
+          height_cm: string | null
+          id: string
+          lifestyle: string | null
+          patient_profile_id: string
+          surgeries: string | null
+          updated_at: string
+          vaccination_notes: string | null
+          weight_kg: string | null
+        }
+        Insert: {
+          additional_notes?: string | null
+          allergies?: string | null
+          blood_type?: string | null
+          chronic_conditions?: string | null
+          created_at?: string
+          current_medications?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
+          family_history?: string | null
+          height_cm?: string | null
+          id?: string
+          lifestyle?: string | null
+          patient_profile_id: string
+          surgeries?: string | null
+          updated_at?: string
+          vaccination_notes?: string | null
+          weight_kg?: string | null
+        }
+        Update: {
+          additional_notes?: string | null
+          allergies?: string | null
+          blood_type?: string | null
+          chronic_conditions?: string | null
+          created_at?: string
+          current_medications?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
+          family_history?: string | null
+          height_cm?: string | null
+          id?: string
+          lifestyle?: string | null
+          patient_profile_id?: string
+          surgeries?: string | null
+          updated_at?: string
+          vaccination_notes?: string | null
+          weight_kg?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "health_forms_patient_profile_id_fkey"
+            columns: ["patient_profile_id"]
+            isOneToOne: true
+            referencedRelation: "patient_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_threads: {
         Row: {
           appointment_id: string | null
