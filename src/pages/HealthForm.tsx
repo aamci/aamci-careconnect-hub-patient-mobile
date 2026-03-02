@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ShieldPlus } from "lucide-react";
+import { ShieldPlus, Loader2 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Header } from "@/components/layout/Header";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -11,15 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import { usePatientProfiles } from "@/hooks/usePatientProfiles";
+import { useHealthForm, useUpsertHealthForm } from "@/hooks/useHealthForm";
 import { useToast } from "@/hooks/use-toast";
 
 const healthFormSchema = z.object({
@@ -42,20 +37,11 @@ const healthFormSchema = z.object({
 type HealthFormValues = z.infer<typeof healthFormSchema>;
 
 const defaultValues: HealthFormValues = {
-  blood_type: "",
-  height_cm: "",
-  weight_kg: "",
-  allergies: "",
-  chronic_conditions: "",
-  current_medications: "",
-  surgeries: "",
-  family_history: "",
-  lifestyle: "",
-  vaccination_notes: "",
-  emergency_contact_name: "",
-  emergency_contact_phone: "",
-  emergency_contact_relation: "",
-  additional_notes: "",
+  blood_type: "", height_cm: "", weight_kg: "", allergies: "",
+  chronic_conditions: "", current_medications: "", surgeries: "",
+  family_history: "", lifestyle: "", vaccination_notes: "",
+  emergency_contact_name: "", emergency_contact_phone: "",
+  emergency_contact_relation: "", additional_notes: "",
 };
 
 export default function HealthFormPage() {
@@ -63,48 +49,43 @@ export default function HealthFormPage() {
   const { data: profiles } = usePatientProfiles();
   const currentProfile = profiles?.find((p) => p.profile_type === "self") || profiles?.[0];
 
+  const { data: savedForm, isLoading: formLoading } = useHealthForm(currentProfile?.id);
+  const upsertMutation = useUpsertHealthForm();
+
   const form = useForm<HealthFormValues>({
     resolver: zodResolver(healthFormSchema),
     defaultValues,
   });
 
-  const storageKey = currentProfile ? `health-form:${currentProfile.id}` : null;
-
+  // Populate form when data loads from Supabase
   useEffect(() => {
-    if (!storageKey) return;
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return;
-
-    try {
-      const parsed = healthFormSchema.partial().parse(JSON.parse(raw));
-      form.reset({ ...defaultValues, ...parsed });
-    } catch {
-      localStorage.removeItem(storageKey);
+    if (!savedForm) return;
+    const mapped: HealthFormValues = {};
+    for (const key of Object.keys(defaultValues) as (keyof HealthFormValues)[]) {
+      mapped[key] = (savedForm as any)[key] ?? "";
     }
-  }, [storageKey, form]);
+    form.reset(mapped);
+  }, [savedForm, form]);
 
   const onSubmit = (values: HealthFormValues) => {
-    if (!storageKey) {
-      toast({
-        title: "Profil introuvable",
-        description: "Impossible d'enregistrer sans profil patient.",
-        variant: "destructive",
-      });
+    if (!currentProfile?.id) {
+      toast({ title: "Profil introuvable", description: "Impossible d'enregistrer sans profil patient.", variant: "destructive" });
       return;
     }
 
-    localStorage.setItem(storageKey, JSON.stringify(values));
-    toast({
-      title: "Formulaire enregistré",
-      description: "Vos informations de santé ont été sauvegardées.",
-    });
+    upsertMutation.mutate(
+      { ...values, patient_profile_id: currentProfile.id },
+      {
+        onSuccess: () => toast({ title: "Formulaire enregistré", description: "Vos informations de santé ont été sauvegardées." }),
+        onError: () => toast({ title: "Erreur", description: "Impossible de sauvegarder le formulaire.", variant: "destructive" }),
+      }
+    );
   };
 
   return (
     <>
       <PageContainer noPadding className="overflow-x-hidden">
         <Header title="Formulaire de santé" showBack />
-
         <main className="px-4 pb-24 max-w-lg mx-auto">
           <Card className="p-4 mb-4">
             <div className="flex items-start gap-3">
@@ -120,217 +101,84 @@ export default function HealthFormPage() {
             </div>
           </Card>
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <Card className="p-4 space-y-3">
-                <h2 className="text-sm font-medium text-muted-foreground">Données générales</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="blood_type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Groupe sanguin</FormLabel>
-                        <FormControl>
-                          <Input placeholder="A+, O-..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="height_cm"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Taille (cm)</FormLabel>
-                        <FormControl>
-                          <Input inputMode="numeric" placeholder="175" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="weight_kg"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Poids (kg)</FormLabel>
-                        <FormControl>
-                          <Input inputMode="numeric" placeholder="72" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </Card>
+          {formLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <Card className="p-4 space-y-3">
+                  <h2 className="text-sm font-medium text-muted-foreground">Données générales</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <FormField control={form.control} name="blood_type" render={({ field }) => (
+                      <FormItem><FormLabel>Groupe sanguin</FormLabel><FormControl><Input placeholder="A+, O-..." {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="height_cm" render={({ field }) => (
+                      <FormItem><FormLabel>Taille (cm)</FormLabel><FormControl><Input inputMode="numeric" placeholder="175" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="weight_kg" render={({ field }) => (
+                      <FormItem><FormLabel>Poids (kg)</FormLabel><FormControl><Input inputMode="numeric" placeholder="72" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                  </div>
+                </Card>
 
-              <Card className="p-4 space-y-3">
-                <h2 className="text-sm font-medium text-muted-foreground">Antécédents médicaux</h2>
-                <FormField
-                  control={form.control}
-                  name="allergies"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Allergies</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Médicaments, aliments, réactions..." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="chronic_conditions"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Maladies chroniques</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Diabète, asthme, HTA, etc." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="surgeries"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Interventions / hospitalisations</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Dates, type d'intervention, complications" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="family_history"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Antécédents familiaux</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Cardiaque, cancers, diabète, etc." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </Card>
+                <Card className="p-4 space-y-3">
+                  <h2 className="text-sm font-medium text-muted-foreground">Antécédents médicaux</h2>
+                  <FormField control={form.control} name="allergies" render={({ field }) => (
+                    <FormItem><FormLabel>Allergies</FormLabel><FormControl><Textarea placeholder="Médicaments, aliments, réactions..." {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="chronic_conditions" render={({ field }) => (
+                    <FormItem><FormLabel>Maladies chroniques</FormLabel><FormControl><Textarea placeholder="Diabète, asthme, HTA, etc." {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="surgeries" render={({ field }) => (
+                    <FormItem><FormLabel>Interventions / hospitalisations</FormLabel><FormControl><Textarea placeholder="Dates, type d'intervention, complications" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="family_history" render={({ field }) => (
+                    <FormItem><FormLabel>Antécédents familiaux</FormLabel><FormControl><Textarea placeholder="Cardiaque, cancers, diabète, etc." {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </Card>
 
-              <Card className="p-4 space-y-3">
-                <h2 className="text-sm font-medium text-muted-foreground">Traitements et prévention</h2>
-                <FormField
-                  control={form.control}
-                  name="current_medications"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Traitements en cours</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Nom, dose, fréquence, durée" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="vaccination_notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Vaccinations / rappels</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Vaccins récents, rappels à prévoir" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="lifestyle"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Habitudes de vie</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Sommeil, activité physique, tabac, alcool..." {...field} />
-                      </FormControl>
-                      <FormDescription>Ces informations aident à personnaliser le suivi.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </Card>
+                <Card className="p-4 space-y-3">
+                  <h2 className="text-sm font-medium text-muted-foreground">Traitements et prévention</h2>
+                  <FormField control={form.control} name="current_medications" render={({ field }) => (
+                    <FormItem><FormLabel>Traitements en cours</FormLabel><FormControl><Textarea placeholder="Nom, dose, fréquence, durée" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="vaccination_notes" render={({ field }) => (
+                    <FormItem><FormLabel>Vaccinations / rappels</FormLabel><FormControl><Textarea placeholder="Vaccins récents, rappels à prévoir" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="lifestyle" render={({ field }) => (
+                    <FormItem><FormLabel>Habitudes de vie</FormLabel><FormControl><Textarea placeholder="Sommeil, activité physique, tabac, alcool..." {...field} /></FormControl><FormDescription>Ces informations aident à personnaliser le suivi.</FormDescription><FormMessage /></FormItem>
+                  )} />
+                </Card>
 
-              <Card className="p-4 space-y-3">
-                <h2 className="text-sm font-medium text-muted-foreground">Contact d'urgence</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="emergency_contact_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nom</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Jean Dupont" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="emergency_contact_relation"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Lien</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Conjoint, parent..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="emergency_contact_phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Téléphone</FormLabel>
-                      <FormControl>
-                        <Input placeholder="06 12 34 56 78" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </Card>
+                <Card className="p-4 space-y-3">
+                  <h2 className="text-sm font-medium text-muted-foreground">Contact d'urgence</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <FormField control={form.control} name="emergency_contact_name" render={({ field }) => (
+                      <FormItem><FormLabel>Nom</FormLabel><FormControl><Input placeholder="Jean Dupont" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="emergency_contact_relation" render={({ field }) => (
+                      <FormItem><FormLabel>Lien</FormLabel><FormControl><Input placeholder="Conjoint, parent..." {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                  </div>
+                  <FormField control={form.control} name="emergency_contact_phone" render={({ field }) => (
+                    <FormItem><FormLabel>Téléphone</FormLabel><FormControl><Input placeholder="06 12 34 56 78" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </Card>
 
-              <Card className="p-4 space-y-3">
-                <FormField
-                  control={form.control}
-                  name="additional_notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes complémentaires</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Informations utiles au praticien" className="min-h-[120px]" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </Card>
+                <Card className="p-4 space-y-3">
+                  <FormField control={form.control} name="additional_notes" render={({ field }) => (
+                    <FormItem><FormLabel>Notes complémentaires</FormLabel><FormControl><Textarea placeholder="Informations utiles au praticien" className="min-h-[120px]" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </Card>
 
-              <Button type="submit" className="w-full">Enregistrer le formulaire</Button>
-            </form>
-          </Form>
+                <Button type="submit" className="w-full" disabled={upsertMutation.isPending}>
+                  {upsertMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enregistrement...</> : "Enregistrer le formulaire"}
+                </Button>
+              </form>
+            </Form>
+          )}
         </main>
       </PageContainer>
       <BottomNavigation />
