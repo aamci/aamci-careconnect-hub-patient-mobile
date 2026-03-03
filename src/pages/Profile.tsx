@@ -128,12 +128,12 @@ export default function ProfilePage() {
       ],
     },
     {
-      title: "Intelligence artificielle",
+      title: "Assistance & ressources",
       items: [
         { 
           icon: Bot, 
-          label: "Assistant Parents IA", 
-          description: "Disponible 24h/24 · Santé, éveil, nutrition",
+          label: "Assistant Patient IA", 
+          description: "Disponible 24h/24 · Santé, prévention, bien-être",
           path: "/assistant",
           iconBg: "bg-gradient-to-br from-primary/15 to-accent/15",
           iconColor: "text-primary",
@@ -142,7 +142,7 @@ export default function ProfilePage() {
         { 
           icon: BookOpen, 
           label: "Contenus santé", 
-          description: "Articles, vidéos personnalisés par âge",
+          description: "Articles, vidéos sur la prévention et le bien-être",
           path: "/health-content",
           iconBg: "bg-teal-500/10",
           iconColor: "text-teal-500",

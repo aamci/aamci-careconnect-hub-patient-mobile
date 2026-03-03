@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Bot, Send, Loader2, AlertTriangle, Sparkles, Baby, Apple, Stethoscope } from "lucide-react";
+import { Bot, Send, Loader2, AlertTriangle, Pill, HeartPulse, Stethoscope, FileQuestion } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Header } from "@/components/layout/Header";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -12,10 +12,10 @@ type Msg = { role: "user" | "assistant"; content: string };
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
 
 const quickQuestions = [
-  { icon: Baby, label: "Éveil & développement", prompt: "Quels sont les repères de développement pour un bébé de 6 mois ?" },
-  { icon: Apple, label: "Nutrition enfant", prompt: "Que donner à manger à un enfant de 1 an qui refuse les légumes ?" },
-  { icon: Stethoscope, label: "Fièvre enfant", prompt: "Mon enfant a 38.5°C de fièvre, que dois-je faire ?" },
-  { icon: Sparkles, label: "Sommeil bébé", prompt: "Comment améliorer le sommeil d'un bébé de 4 mois ?" },
+  { icon: Stethoscope, label: "Préparer un RDV", prompt: "Comment bien préparer ma prochaine consultation médicale ? Quelles questions poser à mon médecin ?" },
+  { icon: Pill, label: "Médicaments", prompt: "Comment bien lire et comprendre une ordonnance médicale ?" },
+  { icon: HeartPulse, label: "Prévention santé", prompt: "Quels sont les examens de prévention recommandés pour un adulte ?" },
+  { icon: FileQuestion, label: "Résultats d'analyses", prompt: "Comment comprendre les résultats d'une prise de sang ? Quels sont les indicateurs importants ?" },
 ];
 
 export default function AIAssistantPage() {
@@ -147,7 +147,7 @@ export default function AIAssistantPage() {
     <>
       <PageContainer noPadding className="overflow-hidden" fullHeight>
         <div className="flex flex-col h-dvh">
-          <Header title="Assistant Parents" showBack />
+          <Header title="Assistant Patient" showBack />
 
           {/* Messages area */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
@@ -158,9 +158,9 @@ export default function AIAssistantPage() {
                   <Bot className="h-8 w-8 text-primary" />
                 </div>
                 <div className="text-center max-w-xs">
-                  <h2 className="text-lg font-semibold font-display mb-2">Assistant Parents IA</h2>
+                 <h2 className="text-lg font-semibold font-display mb-2">Assistant Patient IA</h2>
                   <p className="text-sm text-muted-foreground">
-                    Disponible 24h/24 pour répondre à vos questions santé, éveil et nutrition. Je ne remplace jamais un avis médical.
+                    Disponible 24h/24 pour vous accompagner dans votre parcours de santé. Je ne remplace jamais un avis médical.
                   </p>
                 </div>
 
