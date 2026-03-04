@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Bot, Send, Loader2, AlertTriangle, Pill, HeartPulse, Stethoscope, FileQuestion } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Header } from "@/components/layout/Header";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -204,7 +205,13 @@ export default function AIAssistantPage() {
                           <span className="text-xs font-medium text-primary">Assistant</span>
                         </div>
                       )}
-                      <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                      {msg.role === "assistant" ? (
+                        <div className="text-sm break-words leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0 [&>ul]:mb-2 [&>ol]:mb-2 [&>h3]:text-sm [&>h3]:font-semibold [&>h3]:mt-3 [&>h3]:mb-1 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                      )}
                     </div>
                   </div>
                 ))}
