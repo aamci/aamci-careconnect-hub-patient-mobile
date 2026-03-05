@@ -35,6 +35,9 @@ import History from "./pages/History";
 import HealthForm from "./pages/HealthForm";
 import AIAssistant from "./pages/AIAssistant";
 import HealthContent from "./pages/HealthContent";
+import PostConsultationReview from "./pages/PostConsultationReview";
+import PractitionerReviews from "./pages/PractitionerReviews";
+import ReportPage from "./pages/ReportPage";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +78,9 @@ const App = () => (
             <Route path="/profile/health" element={<ProtectedRoute><HealthForm /></ProtectedRoute>} />
             <Route path="/assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
             <Route path="/health-content" element={<ProtectedRoute><HealthContent /></ProtectedRoute>} />
+            <Route path="/review/:appointmentId" element={<ProtectedRoute><PostConsultationReview /></ProtectedRoute>} />
+            <Route path="/practitioners/:id/reviews" element={<ProtectedRoute><PractitionerReviews /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute><ReportPage /></ProtectedRoute>} />
             
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

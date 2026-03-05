@@ -11,7 +11,8 @@ import {
   RefreshCw,
   Phone,
   Loader2,
-  User
+  User,
+  Star
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -284,6 +285,22 @@ export default function AppointmentDetailPage() {
             </div>
           </div>
         </Card>
+
+        {/* Review CTA for completed appointments */}
+        {appointment.status === "completed" && (
+          <Card className="p-4 border-primary/20 bg-primary/5">
+            <div className="flex items-center gap-3">
+              <Star className="h-8 w-8 text-primary shrink-0" />
+              <div className="flex-1">
+                <p className="font-semibold text-sm">Comment s'est passée votre consultation ?</p>
+                <p className="text-xs text-muted-foreground">Partagez votre expérience</p>
+              </div>
+              <Button size="sm" onClick={() => navigate(`/review/${appointment.id}`)}>
+                Évaluer
+              </Button>
+            </div>
+          </Card>
+        )}
 
         {/* Action Buttons */}
         <div className="space-y-3">
