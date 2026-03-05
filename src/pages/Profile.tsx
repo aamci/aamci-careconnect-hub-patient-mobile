@@ -18,7 +18,8 @@ import {
   Sparkles,
   Crown,
   Mail,
-  Phone
+  Phone,
+  Flag
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -184,6 +185,14 @@ export default function ProfilePage() {
           path: "/help",
           iconBg: "bg-indigo-500/10",
           iconColor: "text-indigo-500",
+        },
+        { 
+          icon: Flag, 
+          label: "Mes signalements", 
+          description: "Suivre vos signalements",
+          path: "/reports",
+          iconBg: "bg-red-500/10",
+          iconColor: "text-red-500",
         },
       ],
     },

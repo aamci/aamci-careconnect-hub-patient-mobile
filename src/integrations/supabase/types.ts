@@ -205,6 +205,69 @@ export type Database = {
         }
         Relationships: []
       }
+      facility_reviews: {
+        Row: {
+          cleanliness_rating: number | null
+          comment: string | null
+          created_at: string
+          equipment_rating: number | null
+          facility_id: string
+          id: string
+          is_anonymous: boolean
+          is_visible: boolean
+          patient_profile_id: string
+          rating: number
+          reception_rating: number | null
+          report_count: number
+          updated_at: string
+        }
+        Insert: {
+          cleanliness_rating?: number | null
+          comment?: string | null
+          created_at?: string
+          equipment_rating?: number | null
+          facility_id: string
+          id?: string
+          is_anonymous?: boolean
+          is_visible?: boolean
+          patient_profile_id: string
+          rating: number
+          reception_rating?: number | null
+          report_count?: number
+          updated_at?: string
+        }
+        Update: {
+          cleanliness_rating?: number | null
+          comment?: string | null
+          created_at?: string
+          equipment_rating?: number | null
+          facility_id?: string
+          id?: string
+          is_anonymous?: boolean
+          is_visible?: boolean
+          patient_profile_id?: string
+          rating?: number
+          reception_rating?: number | null
+          report_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facility_reviews_facility_id_fkey"
+            columns: ["facility_id"]
+            isOneToOne: false
+            referencedRelation: "facilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facility_reviews_patient_profile_id_fkey"
+            columns: ["patient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "patient_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorites: {
         Row: {
           created_at: string
@@ -506,6 +569,70 @@ export type Database = {
         }
         Relationships: []
       }
+      practitioner_reviews: {
+        Row: {
+          appointment_id: string | null
+          comment: string | null
+          created_at: string
+          id: string
+          is_anonymous: boolean
+          is_visible: boolean
+          patient_profile_id: string
+          practitioner_id: string
+          rating: number
+          report_count: number
+          updated_at: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          comment?: string | null
+          created_at?: string
+          id?: string
+          is_anonymous?: boolean
+          is_visible?: boolean
+          patient_profile_id: string
+          practitioner_id: string
+          rating: number
+          report_count?: number
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          comment?: string | null
+          created_at?: string
+          id?: string
+          is_anonymous?: boolean
+          is_visible?: boolean
+          patient_profile_id?: string
+          practitioner_id?: string
+          rating?: number
+          report_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practitioner_reviews_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_reviews_patient_profile_id_fkey"
+            columns: ["patient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "patient_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_reviews_practitioner_id_fkey"
+            columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       practitioners: {
         Row: {
           accepts_new_patients: boolean | null
@@ -580,6 +707,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reports: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          reason: string
+          reporter_user_id: string
+          status: string
+          target_id: string | null
+          target_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          reason: string
+          reporter_user_id: string
+          status?: string
+          target_id?: string | null
+          target_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          reason?: string
+          reporter_user_id?: string
+          status?: string
+          target_id?: string | null
+          target_type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       specialties: {
         Row: {

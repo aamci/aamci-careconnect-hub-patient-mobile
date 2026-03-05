@@ -175,9 +175,12 @@ export default function PractitionerDetailPage() {
                   <div className="flex items-center gap-1 mt-1">
                     <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-warning text-warning shrink-0" />
                     <span className="font-semibold">{practitioner.rating}</span>
-                    <span className="text-xs sm:text-sm text-muted-foreground">
+                    <button
+                      onClick={() => navigate(`/practitioners/${id}/reviews`)}
+                      className="text-xs sm:text-sm text-primary underline hover:no-underline"
+                    >
                       ({practitioner.review_count} avis)
-                    </span>
+                    </button>
                   </div>
                 </div>
               </div>
