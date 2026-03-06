@@ -17,7 +17,8 @@ import {
   Volume2,
   VolumeX,
   RotateCcw,
-  Camera
+  Camera,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/common/Card";
@@ -44,6 +45,7 @@ export default function TeleconsultationPage() {
   const [checkingPermissions, setCheckingPermissions] = useState(true);
   const [callDuration, setCallDuration] = useState(0);
   const [showChat, setShowChat] = useState(false);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: appointments, isLoading } = useAppointments();
@@ -367,8 +369,17 @@ export default function TeleconsultationPage() {
         {/* Local video PiP (patient) — top right */}
         <div className="absolute top-[calc(3.5rem+env(safe-area-inset-top,0px))] right-4 w-28 sm:w-36 aspect-[3/4] bg-gray-900/80 rounded-2xl overflow-hidden shadow-2xl border border-white/10 z-10 flex items-center justify-center">
           {videoEnabled ? (
-            <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
-              <span className="text-xs text-white/60 font-medium">Vous</span>
+            <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center relative">
+              <span className="text-xs text-white/60 font-medium">
+                {facingMode === "user" ? "Vous" : "Arrière"}
+              </span>
+              <button
+                onClick={() => setFacingMode(f => f === "user" ? "environment" : "user")}
+                className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/50 text-white/80 hover:bg-black/70 transition-all"
+                aria-label="Basculer la caméra"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-1">
