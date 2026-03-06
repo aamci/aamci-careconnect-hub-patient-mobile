@@ -326,112 +326,123 @@ export default function TeleconsultationPage() {
     );
   }
 
-  // In Progress
+  // In Progress — Fullscreen immersive video
   if (state === "in_progress") {
     return (
-      <div className="min-h-dvh bg-black flex flex-col">
-        {/* Main Video */}
-        <div className="flex-1 relative">
-          {/* Remote video (practitioner) */}
-          <div className="absolute inset-0 bg-muted flex items-center justify-center">
-            <Avatar
-              src={appointment.practitioner?.avatar_url || undefined}
-              alt="Praticien"
-              size="xl"
-            />
-          </div>
-
-          {/* Local video (patient) */}
-          <div className="absolute top-4 right-4 w-24 sm:w-32 aspect-video bg-muted-foreground/20 rounded-lg flex items-center justify-center">
-            {videoEnabled ? (
-              <span className="text-xs text-white/70">Vous</span>
-            ) : (
-              <VideoOff className="h-6 w-6 text-white/50" />
-            )}
-          </div>
-
-          {/* Top bar */}
-          <div className="absolute top-4 left-4 right-36 sm:right-40 flex items-center gap-3">
-            <div className="bg-black/50 px-3 py-2 rounded-lg">
-              <p className="text-white text-sm truncate">
+      <div className="fixed inset-0 bg-black z-50 flex flex-col">
+        {/* Full screen remote video (practitioner) */}
+        <div className="absolute inset-0 overflow-hidden">
+          {/* Simulated practitioner video — fills entire screen */}
+          <div className="w-full h-full bg-gradient-to-b from-gray-700 via-gray-800 to-gray-900 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <Avatar
+                src={appointment.practitioner?.avatar_url || undefined}
+                alt="Praticien"
+                size="xl"
+                className="w-32 h-32 sm:w-40 sm:h-40 ring-4 ring-white/20"
+              />
+              <p className="text-white/80 text-lg font-medium">
                 Dr. {appointment.practitioner?.first_name} {appointment.practitioner?.last_name}
               </p>
             </div>
-            <div className="bg-red-500/90 px-3 py-2 rounded-lg">
-              <p className="text-white text-sm font-mono">
+          </div>
+        </div>
+
+        {/* Top overlay — name + duration */}
+        <div className="absolute top-0 left-0 right-0 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] px-4 pb-3 bg-gradient-to-b from-black/60 to-transparent z-10">
+          <div className="flex items-center justify-between">
+            <div className="bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
+              <p className="text-white text-sm font-medium truncate">
+                Dr. {appointment.practitioner?.first_name} {appointment.practitioner?.last_name}
+              </p>
+            </div>
+            <div className="bg-red-500/90 backdrop-blur-sm px-3 py-1.5 rounded-full">
+              <p className="text-white text-sm font-mono font-medium">
                 {formatDuration(callDuration)}
               </p>
             </div>
           </div>
+        </div>
 
-          {/* Chat panel */}
-          {showChat && (
-            <div className="absolute bottom-24 left-4 right-4 bg-black/80 rounded-xl p-4 max-h-64 overflow-y-auto">
-              <div className="text-white text-sm text-center text-muted-foreground">
-                Chat en cours de consultation
-              </div>
+        {/* Local video PiP (patient) — top right */}
+        <div className="absolute top-[calc(3.5rem+env(safe-area-inset-top,0px))] right-4 w-28 sm:w-36 aspect-[3/4] bg-gray-900/80 rounded-2xl overflow-hidden shadow-2xl border border-white/10 z-10 flex items-center justify-center">
+          {videoEnabled ? (
+            <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
+              <span className="text-xs text-white/60 font-medium">Vous</span>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-1">
+              <VideoOff className="h-6 w-6 text-white/40" />
+              <span className="text-[10px] text-white/40">Caméra off</span>
             </div>
           )}
         </div>
 
-        {/* Controls */}
-        <div className="bg-black/80 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
-          <div className="flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
+        {/* Chat panel */}
+        {showChat && (
+          <div className="absolute bottom-36 left-4 right-4 bg-black/70 backdrop-blur-md rounded-2xl p-4 max-h-64 overflow-y-auto z-10 border border-white/10">
+            <div className="text-white/60 text-sm text-center">
+              Chat en cours de consultation
+            </div>
+          </div>
+        )}
+
+        {/* Bottom controls — floating over video */}
+        <div className="absolute bottom-0 left-0 right-0 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-8 px-6 bg-gradient-to-t from-black/70 to-transparent z-10">
+          <div className="flex items-center justify-center gap-4 sm:gap-5">
             <button 
               onClick={() => setAudioEnabled(!audioEnabled)}
               className={cn(
-                "p-3 sm:p-4 rounded-full min-w-[48px] min-h-[48px] flex items-center justify-center",
-                audioEnabled ? "bg-white/20 text-white" : "bg-destructive text-destructive-foreground"
+                "p-4 rounded-full min-w-[56px] min-h-[56px] flex items-center justify-center shadow-lg transition-all",
+                audioEnabled 
+                  ? "bg-white/20 backdrop-blur-sm text-white hover:bg-white/30" 
+                  : "bg-destructive text-destructive-foreground"
               )}
             >
-              {audioEnabled ? <Mic className="h-5 w-5 sm:h-6 sm:w-6" /> : <MicOff className="h-5 w-5 sm:h-6 sm:w-6" />}
+              {audioEnabled ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
             </button>
 
             <button 
               onClick={() => setVideoEnabled(!videoEnabled)}
               className={cn(
-                "p-3 sm:p-4 rounded-full min-w-[48px] min-h-[48px] flex items-center justify-center",
-                videoEnabled ? "bg-white/20 text-white" : "bg-destructive text-destructive-foreground"
+                "p-4 rounded-full min-w-[56px] min-h-[56px] flex items-center justify-center shadow-lg transition-all",
+                videoEnabled 
+                  ? "bg-white/20 backdrop-blur-sm text-white hover:bg-white/30" 
+                  : "bg-destructive text-destructive-foreground"
               )}
             >
-              {videoEnabled ? <Video className="h-5 w-5 sm:h-6 sm:w-6" /> : <VideoOff className="h-5 w-5 sm:h-6 sm:w-6" />}
-            </button>
-
-            <button 
-              onClick={() => setSpeakerEnabled(!speakerEnabled)}
-              className={cn(
-                "p-3 sm:p-4 rounded-full min-w-[48px] min-h-[48px] flex items-center justify-center",
-                speakerEnabled ? "bg-white/20 text-white" : "bg-destructive text-destructive-foreground"
-              )}
-            >
-              {speakerEnabled ? <Volume2 className="h-5 w-5 sm:h-6 sm:w-6" /> : <VolumeX className="h-5 w-5 sm:h-6 sm:w-6" />}
+              {videoEnabled ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
             </button>
 
             <button 
               onClick={handleEndCall}
-              className="p-3 sm:p-4 rounded-full bg-destructive text-destructive-foreground min-w-[48px] min-h-[48px] flex items-center justify-center"
+              className="p-5 rounded-full bg-destructive text-destructive-foreground min-w-[64px] min-h-[64px] flex items-center justify-center shadow-xl transition-transform hover:scale-105"
             >
-              <Phone className="h-5 w-5 sm:h-6 sm:w-6 rotate-[135deg]" />
+              <Phone className="h-7 w-7 rotate-[135deg]" />
             </button>
 
             <button 
               onClick={() => setShowChat(!showChat)}
               className={cn(
-                "p-3 sm:p-4 rounded-full min-w-[48px] min-h-[48px] flex items-center justify-center",
-                showChat ? "bg-primary text-primary-foreground" : "bg-white/20 text-white"
+                "p-4 rounded-full min-w-[56px] min-h-[56px] flex items-center justify-center shadow-lg transition-all",
+                showChat 
+                  ? "bg-primary text-primary-foreground" 
+                  : "bg-white/20 backdrop-blur-sm text-white hover:bg-white/30"
               )}
             >
-              <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />
+              <MessageCircle className="h-6 w-6" />
             </button>
 
             <button 
-              onClick={() => setScreenShare(!screenShare)}
+              onClick={() => setSpeakerEnabled(!speakerEnabled)}
               className={cn(
-                "p-3 sm:p-4 rounded-full min-w-[48px] min-h-[48px] hidden sm:flex items-center justify-center",
-                screenShare ? "bg-primary text-primary-foreground" : "bg-white/20 text-white"
+                "p-4 rounded-full min-w-[56px] min-h-[56px] flex items-center justify-center shadow-lg transition-all",
+                speakerEnabled 
+                  ? "bg-white/20 backdrop-blur-sm text-white hover:bg-white/30" 
+                  : "bg-destructive text-destructive-foreground"
               )}
             >
-              {screenShare ? <ScreenShareOff className="h-5 w-5 sm:h-6 sm:w-6" /> : <ScreenShare className="h-5 w-5 sm:h-6 sm:w-6" />}
+              {speakerEnabled ? <Volume2 className="h-6 w-6" /> : <VolumeX className="h-6 w-6" />}
             </button>
           </div>
         </div>
