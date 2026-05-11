@@ -394,16 +394,39 @@ export default function TeleconsultationPage() {
 
         {/* Top overlay — name + duration */}
         <div className="absolute top-0 left-0 right-0 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] px-4 pb-3 bg-gradient-to-b from-black/60 to-transparent z-10">
-          <div className="flex items-center justify-between">
-            <div className="bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
+          <div className="flex items-center justify-between gap-2">
+            <div className="bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full min-w-0">
               <p className="text-white text-sm font-medium truncate">
                 Dr. {appointment.practitioner?.first_name} {appointment.practitioner?.last_name}
               </p>
             </div>
-            <div className="bg-red-500/90 backdrop-blur-sm px-3 py-1.5 rounded-full">
-              <p className="text-white text-sm font-mono font-medium">
-                {formatDuration(callDuration)}
-              </p>
+            <div className="flex items-center gap-2 shrink-0">
+              <div
+                className={cn(
+                  "flex items-center gap-1.5 backdrop-blur-sm px-2.5 py-1.5 rounded-full",
+                  networkQuality === "good" && "bg-emerald-500/90",
+                  networkQuality === "fair" && "bg-amber-500/90",
+                  networkQuality === "poor" && "bg-red-500/90"
+                )}
+                aria-label={`Qualité réseau: ${networkQuality}`}
+                title={`Qualité réseau: ${networkQuality === "good" ? "bonne" : networkQuality === "fair" ? "moyenne" : "faible"}`}
+              >
+                {networkQuality === "good" ? (
+                  <SignalHigh className="h-3.5 w-3.5 text-white" />
+                ) : networkQuality === "fair" ? (
+                  <SignalMedium className="h-3.5 w-3.5 text-white" />
+                ) : (
+                  <SignalLow className="h-3.5 w-3.5 text-white" />
+                )}
+                <span className="text-white text-xs font-medium hidden xs:inline sm:inline">
+                  {networkQuality === "good" ? "Bonne" : networkQuality === "fair" ? "Moyenne" : "Faible"}
+                </span>
+              </div>
+              <div className="bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                <p className="text-white text-sm font-mono font-medium">
+                  {formatDuration(callDuration)}
+                </p>
+              </div>
             </div>
           </div>
         </div>
