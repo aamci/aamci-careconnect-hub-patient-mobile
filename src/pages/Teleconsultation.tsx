@@ -96,6 +96,43 @@ export default function TeleconsultationPage() {
     };
   }, [state]);
 
+  // Network quality monitoring during call
+  useEffect(() => {
+    if (state !== "in_progress") return;
+
+    const evaluate = () => {
+      // Prefer Network Information API when available
+      const conn = (navigator as any).connection;
+      if (conn && (conn.effectiveType || typeof conn.downlink === "number")) {
+        const et = conn.effectiveType as string | undefined;
+        const dl = conn.downlink as number | undefined;
+        const rtt = conn.rtt as number | undefined;
+        if (et === "4g" && (dl ?? 5) >= 2 && (rtt ?? 100) < 300) {
+          setNetworkQuality("good");
+        } else if (et === "3g" || ((dl ?? 1) >= 0.7)) {
+          setNetworkQuality("fair");
+        } else {
+          setNetworkQuality("poor");
+        }
+        return;
+      }
+      // Fallback: simulate with small variations
+      const r = Math.random();
+      setNetworkQuality(r < 0.7 ? "good" : r < 0.92 ? "fair" : "poor");
+    };
+
+    evaluate();
+    const interval = setInterval(evaluate, 5000);
+
+    const conn = (navigator as any).connection;
+    conn?.addEventListener?.("change", evaluate);
+
+    return () => {
+      clearInterval(interval);
+      conn?.removeEventListener?.("change", evaluate);
+    };
+  }, [state]);
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
