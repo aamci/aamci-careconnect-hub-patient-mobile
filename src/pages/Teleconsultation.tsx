@@ -50,6 +50,7 @@ export default function TeleconsultationPage() {
   const [callDuration, setCallDuration] = useState(0);
   const [showChat, setShowChat] = useState(false);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [networkQuality, setNetworkQuality] = useState<"good" | "fair" | "poor">("good");
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: appointments, isLoading } = useAppointments();
