@@ -18,7 +18,11 @@ import {
   VolumeX,
   RotateCcw,
   Camera,
-  RefreshCw
+  RefreshCw,
+  Signal,
+  SignalLow,
+  SignalMedium,
+  SignalHigh
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/common/Card";
