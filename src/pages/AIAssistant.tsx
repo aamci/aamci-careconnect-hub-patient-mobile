@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/common/Card";
+import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import { cn } from "@/lib/utils";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -206,9 +207,16 @@ export default function AIAssistantPage() {
                         </div>
                       )}
                       {msg.role === "assistant" ? (
-                        <div className="text-sm break-words leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0 [&>ul]:mb-2 [&>ol]:mb-2 [&>h3]:text-sm [&>h3]:font-semibold [&>h3]:mt-3 [&>h3]:mb-1 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4">
-                          <ReactMarkdown>{msg.content}</ReactMarkdown>
-                        </div>
+                        <>
+                          <div className="text-sm break-words leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0 [&>ul]:mb-2 [&>ol]:mb-2 [&>h3]:text-sm [&>h3]:font-semibold [&>h3]:mt-3 [&>h3]:mb-1 [&>ul]:list-disc [&>ul]:pl-4 [&>ol]:list-decimal [&>ol]:pl-4">
+                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          </div>
+                          {msg.content && !(isLoading && i === messages.length - 1) && (
+                            <div className="mt-2 -ml-1">
+                              <AudioPlayer text={msg.content} label="Écouter" />
+                            </div>
+                          )}
+                        </>
                       ) : (
                         <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
                       )}

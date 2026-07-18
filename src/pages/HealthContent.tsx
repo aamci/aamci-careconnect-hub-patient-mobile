@@ -8,6 +8,7 @@ import { Header } from "@/components/layout/Header";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { Card } from "@/components/common/Card";
 import { Badge } from "@/components/common/Badge";
+import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import { cn } from "@/lib/utils";
 
 type Category = "all" | "prevention" | "nutrition" | "bien-etre" | "maladies" | "droits" | "mental";
@@ -127,6 +128,9 @@ export default function HealthContentPage() {
                                 {article.expert}
                               </span>
                             </div>
+                            <div className="mt-2">
+                              <AudioPlayer text={`${article.title}. ${article.summary}`} label="Écouter le résumé" />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -160,10 +164,11 @@ export default function HealthContentPage() {
                         </div>
                         <h3 className="font-semibold text-foreground text-sm truncate">{article.title}</h3>
                         <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{article.summary}</p>
-                        <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                           <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                             <Clock className="h-3 w-3" />{article.readTime}
                           </span>
+                          <AudioPlayer text={`${article.title}. ${article.summary}`} label="Écouter" compact />
                         </div>
                       </div>
                       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 self-center" />
