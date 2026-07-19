@@ -8,15 +8,19 @@ import { Button } from "@/components/ui/button";
 import { ReviewCard } from "@/components/reviews/ReviewCard";
 import { ReportDialog } from "@/components/reviews/ReportDialog";
 import { StarRating } from "@/components/reviews/StarRating";
-import { usePractitionerReviews } from "@/hooks/useReviews";
+import { usePractitionerReviews, useReviewResponses } from "@/hooks/useReviews";
 import { usePractitioner } from "@/hooks/usePractitioners";
+
 
 export default function PractitionerReviewsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: practitioner } = usePractitioner(id || "");
   const { data: reviews, isLoading } = usePractitionerReviews(id || "");
+  const reviewIds = (reviews ?? []).map(r => r.id);
+  const { data: responses } = useReviewResponses(reviewIds, "practitioner");
   const [reportTarget, setReportTarget] = useState<{ type: "review" | "practitioner"; id?: string } | null>(null);
+
 
   const avgRating = reviews?.length
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
@@ -85,9 +89,12 @@ export default function PractitionerReviewsPage() {
               <ReviewCard
                 key={review.id}
                 {...review}
+                reviewType="practitioner"
+                response={responses?.find(r => r.review_id === review.id)}
                 onReport={() => setReportTarget({ type: "review", id: review.id })}
               />
             ))}
+
           </div>
         )}
       </div>
