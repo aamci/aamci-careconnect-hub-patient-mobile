@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { ReviewCard } from "@/components/reviews/ReviewCard";
 import { ReportDialog } from "@/components/reviews/ReportDialog";
 import { StarRating } from "@/components/reviews/StarRating";
-import { usePractitionerReviews } from "@/hooks/useReviews";
+import { usePractitionerReviews, useReviewResponses } from "@/hooks/useReviews";
 import { usePractitioner } from "@/hooks/usePractitioners";
+
 
 export default function PractitionerReviewsPage() {
   const { id } = useParams();
