@@ -12,6 +12,8 @@ export interface PractitionerReview {
   is_anonymous: boolean;
   is_visible: boolean;
   report_count: number;
+  moderation_status?: "published" | "under_review" | "rejected";
+  moderation_reason?: string | null;
   created_at: string;
   updated_at: string;
   patient_profile?: { first_name: string; last_name: string; avatar_url: string | null };
@@ -29,12 +31,23 @@ export interface FacilityReview {
   is_anonymous: boolean;
   is_visible: boolean;
   report_count: number;
+  moderation_status?: "published" | "under_review" | "rejected";
+  moderation_reason?: string | null;
   created_at: string;
   updated_at: string;
   patient_profile?: { first_name: string; last_name: string; avatar_url: string | null };
 }
 
-// Practitioner reviews
+async function moderate(review_id: string, review_type: "practitioner" | "facility", comment: string | undefined, rating: number) {
+  try {
+    await supabase.functions.invoke("moderate-review", {
+      body: { review_id, review_type, comment, rating },
+    });
+  } catch (e) {
+    console.warn("Moderation call failed", e);
+  }
+}
+
 export function usePractitionerReviews(practitionerId: string) {
   return useQuery({
     queryKey: ["practitioner-reviews", practitionerId],
@@ -85,7 +98,9 @@ export function useCreatePractitionerReview() {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      const inserted = data as any;
+      await moderate(inserted.id, "practitioner", review.comment, review.rating);
+      return inserted;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["practitioner-reviews", variables.practitioner_id] });
@@ -95,7 +110,6 @@ export function useCreatePractitionerReview() {
   });
 }
 
-// Facility reviews
 export function useFacilityReviews(facilityId: string) {
   return useQuery({
     queryKey: ["facility-reviews", facilityId],
@@ -132,7 +146,9 @@ export function useCreateFacilityReview() {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      const inserted = data as any;
+      await moderate(inserted.id, "facility", review.comment, review.rating);
+      return inserted;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["facility-reviews", variables.facility_id] });
@@ -140,9 +156,9 @@ export function useCreateFacilityReview() {
   });
 }
 
-// Reports
 export function useCreateReport() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (report: {
       target_type: "practitioner" | "review" | "facility" | "technical";
@@ -158,6 +174,10 @@ export function useCreateReport() {
         .single();
       if (error) throw error;
       return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["practitioner-reviews"] });
+      queryClient.invalidateQueries({ queryKey: ["facility-reviews"] });
     },
   });
 }
@@ -184,5 +204,75 @@ export function useUserReports() {
       }>;
     },
     enabled: !!user,
+  });
+}
+
+// --- Review responses ---
+export interface ReviewResponse {
+  id: string;
+  review_id: string;
+  review_type: "practitioner" | "facility";
+  responder_user_id: string;
+  response: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export function useReviewResponses(reviewIds: string[], reviewType: "practitioner" | "facility") {
+  return useQuery({
+    queryKey: ["review-responses", reviewType, reviewIds.sort().join(",")],
+    queryFn: async () => {
+      if (reviewIds.length === 0) return [] as ReviewResponse[];
+      const { data, error } = await supabase
+        .from("review_responses" as any)
+        .select("*")
+        .eq("review_type", reviewType)
+        .in("review_id", reviewIds);
+      if (error) throw error;
+      return data as unknown as ReviewResponse[];
+    },
+    enabled: reviewIds.length > 0,
+  });
+}
+
+export function useCreateReviewResponse() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { review_id: string; review_type: "practitioner" | "facility"; response: string }) => {
+      if (!user) throw new Error("Non authentifié");
+      const { data, error } = await supabase
+        .from("review_responses" as any)
+        .insert({ ...payload, responder_user_id: user.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["review-responses"] });
+    },
+  });
+}
+
+// --- Review disputes ---
+export function useCreateReviewDispute() {
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (payload: {
+      review_id: string;
+      review_type: "practitioner" | "facility";
+      reason: string;
+      details?: string;
+    }) => {
+      if (!user) throw new Error("Non authentifié");
+      const { data, error } = await supabase
+        .from("review_disputes" as any)
+        .insert({ ...payload, disputer_user_id: user.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
   });
 }
