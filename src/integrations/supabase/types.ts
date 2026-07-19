@@ -215,6 +215,9 @@ export type Database = {
           id: string
           is_anonymous: boolean
           is_visible: boolean
+          moderated_at: string | null
+          moderation_reason: string | null
+          moderation_status: Database["public"]["Enums"]["review_moderation_status"]
           patient_profile_id: string
           rating: number
           reception_rating: number | null
@@ -230,6 +233,9 @@ export type Database = {
           id?: string
           is_anonymous?: boolean
           is_visible?: boolean
+          moderated_at?: string | null
+          moderation_reason?: string | null
+          moderation_status?: Database["public"]["Enums"]["review_moderation_status"]
           patient_profile_id: string
           rating: number
           reception_rating?: number | null
@@ -245,6 +251,9 @@ export type Database = {
           id?: string
           is_anonymous?: boolean
           is_visible?: boolean
+          moderated_at?: string | null
+          moderation_reason?: string | null
+          moderation_status?: Database["public"]["Enums"]["review_moderation_status"]
           patient_profile_id?: string
           rating?: number
           reception_rating?: number | null
@@ -577,6 +586,9 @@ export type Database = {
           id: string
           is_anonymous: boolean
           is_visible: boolean
+          moderated_at: string | null
+          moderation_reason: string | null
+          moderation_status: Database["public"]["Enums"]["review_moderation_status"]
           patient_profile_id: string
           practitioner_id: string
           rating: number
@@ -590,6 +602,9 @@ export type Database = {
           id?: string
           is_anonymous?: boolean
           is_visible?: boolean
+          moderated_at?: string | null
+          moderation_reason?: string | null
+          moderation_status?: Database["public"]["Enums"]["review_moderation_status"]
           patient_profile_id: string
           practitioner_id: string
           rating: number
@@ -603,6 +618,9 @@ export type Database = {
           id?: string
           is_anonymous?: boolean
           is_visible?: boolean
+          moderated_at?: string | null
+          moderation_reason?: string | null
+          moderation_status?: Database["public"]["Enums"]["review_moderation_status"]
           patient_profile_id?: string
           practitioner_id?: string
           rating?: number
@@ -744,6 +762,75 @@ export type Database = {
         }
         Relationships: []
       }
+      review_disputes: {
+        Row: {
+          created_at: string
+          details: string | null
+          disputer_user_id: string
+          id: string
+          reason: string
+          resolution_note: string | null
+          review_id: string
+          review_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          disputer_user_id: string
+          id?: string
+          reason: string
+          resolution_note?: string | null
+          review_id: string
+          review_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          disputer_user_id?: string
+          id?: string
+          reason?: string
+          resolution_note?: string | null
+          review_id?: string
+          review_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      review_responses: {
+        Row: {
+          created_at: string
+          id: string
+          responder_user_id: string
+          response: string
+          review_id: string
+          review_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          responder_user_id: string
+          response: string
+          review_id: string
+          review_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          responder_user_id?: string
+          response?: string
+          review_id?: string
+          review_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       specialties: {
         Row: {
           color: string | null
@@ -802,6 +889,7 @@ export type Database = {
       gender_type: "male" | "female" | "other"
       message_status: "sending" | "sent" | "delivered" | "read" | "failed"
       profile_type: "self" | "child" | "dependent"
+      review_moderation_status: "published" | "under_review" | "rejected"
       sender_type: "patient" | "practitioner" | "system"
     }
     CompositeTypes: {
@@ -952,6 +1040,7 @@ export const Constants = {
       gender_type: ["male", "female", "other"],
       message_status: ["sending", "sent", "delivered", "read", "failed"],
       profile_type: ["self", "child", "dependent"],
+      review_moderation_status: ["published", "under_review", "rejected"],
       sender_type: ["patient", "practitioner", "system"],
     },
   },
