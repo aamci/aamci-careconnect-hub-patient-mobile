@@ -17,7 +17,10 @@ export default function PractitionerReviewsPage() {
   const navigate = useNavigate();
   const { data: practitioner } = usePractitioner(id || "");
   const { data: reviews, isLoading } = usePractitionerReviews(id || "");
+  const reviewIds = (reviews ?? []).map(r => r.id);
+  const { data: responses } = useReviewResponses(reviewIds, "practitioner");
   const [reportTarget, setReportTarget] = useState<{ type: "review" | "practitioner"; id?: string } | null>(null);
+
 
   const avgRating = reviews?.length
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
