@@ -89,9 +89,12 @@ export default function PractitionerReviewsPage() {
               <ReviewCard
                 key={review.id}
                 {...review}
+                reviewType="practitioner"
+                response={responses?.find(r => r.review_id === review.id)}
                 onReport={() => setReportTarget({ type: "review", id: review.id })}
               />
             ))}
+
           </div>
         )}
       </div>
