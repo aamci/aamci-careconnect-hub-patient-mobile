@@ -265,32 +265,48 @@ export default function TeleconsultationPage() {
           <div className="w-full max-w-sm space-y-6">
             {/* Video Preview */}
             <div className="aspect-video bg-muted rounded-2xl flex items-center justify-center relative overflow-hidden">
-              <div className="text-center">
-                <Camera className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Aperçu vidéo</p>
-              </div>
+              <video
+                ref={previewVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className={cn(
+                  "absolute inset-0 w-full h-full object-cover",
+                  (!cameraOk || !videoEnabled) && "hidden",
+                  facingMode === "user" && "scale-x-[-1]"
+                )}
+              />
+              {(!cameraOk || !videoEnabled) && (
+                <div className="text-center relative z-10">
+                  <Camera className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    {cameraOk ? "Caméra désactivée" : "Aperçu vidéo"}
+                  </p>
+                </div>
+              )}
               {/* Controls */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
-                <button 
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3 z-10">
+                <button
                   onClick={() => setVideoEnabled(!videoEnabled)}
                   className={cn(
-                    "p-3 rounded-full min-w-[48px] min-h-[48px] flex items-center justify-center",
-                    videoEnabled ? "bg-muted" : "bg-destructive text-destructive-foreground"
+                    "p-3 rounded-full min-w-[48px] min-h-[48px] flex items-center justify-center backdrop-blur-sm",
+                    videoEnabled ? "bg-white/80 text-foreground" : "bg-destructive text-destructive-foreground"
                   )}
                 >
                   {videoEnabled ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
                 </button>
-                <button 
+                <button
                   onClick={() => setAudioEnabled(!audioEnabled)}
                   className={cn(
-                    "p-3 rounded-full min-w-[48px] min-h-[48px] flex items-center justify-center",
-                    audioEnabled ? "bg-muted" : "bg-destructive text-destructive-foreground"
+                    "p-3 rounded-full min-w-[48px] min-h-[48px] flex items-center justify-center backdrop-blur-sm",
+                    audioEnabled ? "bg-white/80 text-foreground" : "bg-destructive text-destructive-foreground"
                   )}
                 >
                   {audioEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
                 </button>
               </div>
             </div>
+
 
             {/* Permission Checks */}
             <Card className="p-4 space-y-4">
