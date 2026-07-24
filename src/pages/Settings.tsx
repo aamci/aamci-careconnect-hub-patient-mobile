@@ -35,13 +35,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
 
+import { ChangePasswordDialog } from "@/components/settings/ChangePasswordDialog";
+import { useDarkMode } from "@/hooks/useDarkMode";
+
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { toast } = useToast();
-  const [darkMode, setDarkMode] = useState(false);
+  const { enabled: darkMode, toggle: toggleDarkMode } = useDarkMode();
   const [biometric, setBiometric] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+
 
   const handleSignOut = async () => {
     await signOut();
@@ -81,13 +86,9 @@ export default function SettingsPage() {
         {
           icon: Lock,
           label: "Changer le mot de passe",
-          onClick: () => {
-            toast({
-              title: "Fonctionnalité à venir",
-              description: "Le changement de mot de passe sera bientôt disponible",
-            });
-          },
+          onClick: () => setPasswordOpen(true),
         },
+
         {
           icon: Smartphone,
           label: "Authentification biométrique",
@@ -155,12 +156,13 @@ export default function SettingsPage() {
           toggle: true,
           checked: darkMode,
           onToggle: () => {
-            setDarkMode(!darkMode);
+            toggleDarkMode();
             toast({
               title: darkMode ? "Mode clair activé" : "Mode sombre activé",
               description: "Le thème a été modifié",
             });
           },
+
         },
       ],
     },
