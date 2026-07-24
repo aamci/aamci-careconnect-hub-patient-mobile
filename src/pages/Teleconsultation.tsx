@@ -201,28 +201,29 @@ export default function TeleconsultationPage() {
     if (callTimerRef.current) {
       clearInterval(callTimerRef.current);
     }
+    localStreamRef.current?.getTracks().forEach(t => t.stop());
+    localStreamRef.current = null;
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     setState("ended");
   };
 
   const handleLeave = () => {
+    localStreamRef.current?.getTracks().forEach(t => t.stop());
     navigate("/appointments");
   };
 
   const handleRetryPermissions = async () => {
     setCheckingPermissions(true);
-    setCameraOk(false);
-    setMicOk(false);
-    
-    try {
-      await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      setCameraOk(true);
-      setMicOk(true);
-    } catch (error) {
-      console.error("Permission error:", error);
-    }
-    
+    await acquireStream();
     setCheckingPermissions(false);
   };
+
+  const handleSwitchCamera = async () => {
+    const next = facingMode === "user" ? "environment" : "user";
+    setFacingMode(next);
+    await acquireStream(next);
+  };
+
 
   if (isLoading) {
     return (
