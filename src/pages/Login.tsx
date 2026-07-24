@@ -32,12 +32,9 @@ export default function LoginPage() {
           : error.message,
       });
     } else {
-      toast({
-        title: "Connexion réussie",
-        description: "Bienvenue !",
-      });
       navigate("/");
     }
+
 
     setLoading(false);
   };

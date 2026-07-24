@@ -51,36 +51,86 @@ export default function TeleconsultationPage() {
   const [showChat, setShowChat] = useState(false);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [networkQuality, setNetworkQuality] = useState<"good" | "fair" | "poor">("good");
+  const [mainView, setMainView] = useState<"remote" | "local">("remote");
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const localVideoMainRef = useRef<HTMLVideoElement | null>(null);
+  const localVideoPipRef = useRef<HTMLVideoElement | null>(null);
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
+
 
   const { data: appointments, isLoading } = useAppointments();
   const appointment = appointments?.find((a) => a.id === id);
 
-  useEffect(() => {
-    const checkPermissions = async () => {
-      setCheckingPermissions(true);
-      
-      try {
-        // Request camera permission
-        await navigator.mediaDevices.getUserMedia({ video: true });
-        setCameraOk(true);
-      } catch {
-        setCameraOk(false);
+  const attachStreamToVideos = (stream: MediaStream | null) => {
+    [previewVideoRef.current, localVideoMainRef.current, localVideoPipRef.current].forEach(v => {
+      if (v && v.srcObject !== stream) {
+        v.srcObject = stream;
+        if (stream) v.play().catch(() => {});
       }
-      
-      try {
-        // Request mic permission
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-        setMicOk(true);
-      } catch {
-        setMicOk(false);
-      }
-      
-      setCheckingPermissions(false);
-    };
+    });
+  };
 
-    checkPermissions();
+  const acquireStream = async (mode: "user" | "environment" = facingMode) => {
+    // Stop previous tracks
+    localStreamRef.current?.getTracks().forEach(t => t.stop());
+    localStreamRef.current = null;
+
+    let stream: MediaStream | null = null;
+    let camOk = false;
+    let micOkLocal = false;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: mode } },
+        audio: true,
+      });
+      camOk = stream.getVideoTracks().length > 0;
+      micOkLocal = stream.getAudioTracks().length > 0;
+    } catch {
+      // Try audio only fallback
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micOkLocal = !!stream?.getAudioTracks().length;
+      } catch {
+        stream = null;
+      }
+    }
+    localStreamRef.current = stream;
+    setCameraOk(camOk);
+    setMicOk(micOkLocal);
+    // apply current toggles
+    stream?.getVideoTracks().forEach(t => (t.enabled = videoEnabled));
+    stream?.getAudioTracks().forEach(t => (t.enabled = audioEnabled));
+    attachStreamToVideos(stream);
+    return stream;
+  };
+
+  useEffect(() => {
+    (async () => {
+      setCheckingPermissions(true);
+      await acquireStream();
+      setCheckingPermissions(false);
+    })();
+    return () => {
+      localStreamRef.current?.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-attach stream when video elements mount (state transitions)
+  useEffect(() => {
+    attachStreamToVideos(localStreamRef.current);
+  }, [state, mainView, videoEnabled]);
+
+  // Apply toggles to tracks
+  useEffect(() => {
+    localStreamRef.current?.getVideoTracks().forEach(t => (t.enabled = videoEnabled));
+  }, [videoEnabled]);
+  useEffect(() => {
+    localStreamRef.current?.getAudioTracks().forEach(t => (t.enabled = audioEnabled));
+  }, [audioEnabled]);
+
 
   useEffect(() => {
     if (state === "in_progress") {
@@ -139,40 +189,46 @@ export default function TeleconsultationPage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleJoinCall = () => {
+  const handleJoinCall = async () => {
+    if (!localStreamRef.current) await acquireStream();
     setState("waiting");
-    // Simulate practitioner joining after delay
+    // Try to enter fullscreen (best effort — must be from user gesture)
+    try {
+      await document.documentElement.requestFullscreen?.();
+    } catch {}
     setTimeout(() => {
       setState("in_progress");
     }, 3000);
   };
 
+
   const handleEndCall = () => {
     if (callTimerRef.current) {
       clearInterval(callTimerRef.current);
     }
+    localStreamRef.current?.getTracks().forEach(t => t.stop());
+    localStreamRef.current = null;
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     setState("ended");
   };
 
   const handleLeave = () => {
+    localStreamRef.current?.getTracks().forEach(t => t.stop());
     navigate("/appointments");
   };
 
   const handleRetryPermissions = async () => {
     setCheckingPermissions(true);
-    setCameraOk(false);
-    setMicOk(false);
-    
-    try {
-      await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      setCameraOk(true);
-      setMicOk(true);
-    } catch (error) {
-      console.error("Permission error:", error);
-    }
-    
+    await acquireStream();
     setCheckingPermissions(false);
   };
+
+  const handleSwitchCamera = async () => {
+    const next = facingMode === "user" ? "environment" : "user";
+    setFacingMode(next);
+    await acquireStream(next);
+  };
+
 
   if (isLoading) {
     return (
@@ -214,32 +270,48 @@ export default function TeleconsultationPage() {
           <div className="w-full max-w-sm space-y-6">
             {/* Video Preview */}
             <div className="aspect-video bg-muted rounded-2xl flex items-center justify-center relative overflow-hidden">
-              <div className="text-center">
-                <Camera className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Aperçu vidéo</p>
-              </div>
+              <video
+                ref={previewVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className={cn(
+                  "absolute inset-0 w-full h-full object-cover",
+                  (!cameraOk || !videoEnabled) && "hidden",
+                  facingMode === "user" && "scale-x-[-1]"
+                )}
+              />
+              {(!cameraOk || !videoEnabled) && (
+                <div className="text-center relative z-10">
+                  <Camera className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    {cameraOk ? "Caméra désactivée" : "Aperçu vidéo"}
+                  </p>
+                </div>
+              )}
               {/* Controls */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
-                <button 
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3 z-10">
+                <button
                   onClick={() => setVideoEnabled(!videoEnabled)}
                   className={cn(
-                    "p-3 rounded-full min-w-[48px] min-h-[48px] flex items-center justify-center",
-                    videoEnabled ? "bg-muted" : "bg-destructive text-destructive-foreground"
+                    "p-3 rounded-full min-w-[48px] min-h-[48px] flex items-center justify-center backdrop-blur-sm",
+                    videoEnabled ? "bg-white/80 text-foreground" : "bg-destructive text-destructive-foreground"
                   )}
                 >
                   {videoEnabled ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
                 </button>
-                <button 
+                <button
                   onClick={() => setAudioEnabled(!audioEnabled)}
                   className={cn(
-                    "p-3 rounded-full min-w-[48px] min-h-[48px] flex items-center justify-center",
-                    audioEnabled ? "bg-muted" : "bg-destructive text-destructive-foreground"
+                    "p-3 rounded-full min-w-[48px] min-h-[48px] flex items-center justify-center backdrop-blur-sm",
+                    audioEnabled ? "bg-white/80 text-foreground" : "bg-destructive text-destructive-foreground"
                   )}
                 >
                   {audioEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
                 </button>
               </div>
             </div>
+
 
             {/* Permission Checks */}
             <Card className="p-4 space-y-4">
@@ -374,22 +446,43 @@ export default function TeleconsultationPage() {
   if (state === "in_progress") {
     return (
       <div className="fixed inset-0 bg-black z-50 flex flex-col">
-        {/* Full screen remote video (practitioner) */}
-        <div className="absolute inset-0 overflow-hidden">
-          {/* Simulated practitioner video — fills entire screen */}
-          <div className="w-full h-full bg-gradient-to-b from-gray-700 via-gray-800 to-gray-900 flex items-center justify-center">
-            <div className="flex flex-col items-center gap-4">
-              <Avatar
-                src={appointment.practitioner?.avatar_url || undefined}
-                alt="Praticien"
-                size="xl"
-                className="w-32 h-32 sm:w-40 sm:h-40 ring-4 ring-white/20"
-              />
-              <p className="text-white/80 text-lg font-medium">
-                Dr. {appointment.practitioner?.first_name} {appointment.practitioner?.last_name}
-              </p>
+        {/* Main tile — practitioner OR local depending on swap */}
+        <div className="absolute inset-0 overflow-hidden bg-black">
+          {mainView === "remote" ? (
+            <div className="w-full h-full bg-gradient-to-b from-gray-700 via-gray-800 to-gray-900 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-4">
+                <Avatar
+                  src={appointment.practitioner?.avatar_url || undefined}
+                  alt="Praticien"
+                  size="xl"
+                  className="w-32 h-32 sm:w-40 sm:h-40 ring-4 ring-white/20"
+                />
+                <p className="text-white/80 text-lg font-medium">
+                  Dr. {appointment.practitioner?.first_name} {appointment.practitioner?.last_name}
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <video
+                ref={localVideoMainRef}
+                autoPlay
+                playsInline
+                muted
+                className={cn(
+                  "absolute inset-0 w-full h-full object-cover",
+                  (!cameraOk || !videoEnabled) && "hidden",
+                  facingMode === "user" && "scale-x-[-1]"
+                )}
+              />
+              {(!cameraOk || !videoEnabled) && (
+                <div className="w-full h-full bg-gradient-to-b from-gray-700 to-gray-900 flex flex-col items-center justify-center gap-2">
+                  <VideoOff className="h-12 w-12 text-white/40" />
+                  <span className="text-white/60 text-sm">Caméra désactivée</span>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Top overlay — name + duration */}
@@ -409,7 +502,6 @@ export default function TeleconsultationPage() {
                   networkQuality === "poor" && "bg-red-500/90"
                 )}
                 aria-label={`Qualité réseau: ${networkQuality}`}
-                title={`Qualité réseau: ${networkQuality === "good" ? "bonne" : networkQuality === "fair" ? "moyenne" : "faible"}`}
               >
                 {networkQuality === "good" ? (
                   <SignalHigh className="h-3.5 w-3.5 text-white" />
@@ -431,28 +523,57 @@ export default function TeleconsultationPage() {
           </div>
         </div>
 
-        {/* Local video PiP (patient) — top right */}
-        <div className="absolute top-[calc(3.5rem+env(safe-area-inset-top,0px))] right-4 w-28 sm:w-36 aspect-[3/4] bg-gray-900/80 rounded-2xl overflow-hidden shadow-2xl border border-white/10 z-10 flex items-center justify-center">
-          {videoEnabled ? (
-            <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center relative">
-              <span className="text-xs text-white/60 font-medium">
-                {facingMode === "user" ? "Vous" : "Arrière"}
-              </span>
-              <button
-                onClick={() => setFacingMode(f => f === "user" ? "environment" : "user")}
-                className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/50 text-white/80 hover:bg-black/70 transition-all"
-                aria-label="Basculer la caméra"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </button>
-            </div>
+        {/* PiP tile — the OTHER participant. Tap to swap. */}
+        <button
+          type="button"
+          onClick={() => setMainView(v => (v === "remote" ? "local" : "remote"))}
+          className="absolute top-[calc(3.5rem+env(safe-area-inset-top,0px))] right-4 w-28 sm:w-36 aspect-[3/4] bg-gray-900/80 rounded-2xl overflow-hidden shadow-2xl border border-white/10 z-10 flex items-center justify-center active:scale-95 transition-transform"
+          aria-label="Basculer la vue principale"
+        >
+          {mainView === "remote" ? (
+            // PiP shows local (patient) camera
+            <>
+              <video
+                ref={localVideoPipRef}
+                autoPlay
+                playsInline
+                muted
+                className={cn(
+                  "absolute inset-0 w-full h-full object-cover",
+                  (!cameraOk || !videoEnabled) && "hidden",
+                  facingMode === "user" && "scale-x-[-1]"
+                )}
+              />
+              {(!cameraOk || !videoEnabled) && (
+                <div className="flex flex-col items-center gap-1">
+                  <VideoOff className="h-6 w-6 text-white/40" />
+                  <span className="text-[10px] text-white/40">Caméra off</span>
+                </div>
+              )}
+              {cameraOk && videoEnabled && (
+                <span
+                  onClick={(e) => { e.stopPropagation(); handleSwitchCamera(); }}
+                  className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/50 text-white/80 hover:bg-black/70 transition-all cursor-pointer"
+                  aria-label="Basculer la caméra"
+                  role="button"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </span>
+              )}
+            </>
           ) : (
-            <div className="flex flex-col items-center gap-1">
-              <VideoOff className="h-6 w-6 text-white/40" />
-              <span className="text-[10px] text-white/40">Caméra off</span>
+            // PiP shows the practitioner
+            <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
+              <Avatar
+                src={appointment.practitioner?.avatar_url || undefined}
+                alt="Praticien"
+                size="md"
+                className="ring-2 ring-white/20"
+              />
             </div>
           )}
-        </div>
+        </button>
+
 
         {/* Chat panel */}
         {showChat && (
