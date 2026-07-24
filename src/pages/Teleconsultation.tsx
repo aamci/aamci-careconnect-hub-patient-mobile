@@ -189,13 +189,18 @@ export default function TeleconsultationPage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleJoinCall = () => {
+  const handleJoinCall = async () => {
+    if (!localStreamRef.current) await acquireStream();
     setState("waiting");
-    // Simulate practitioner joining after delay
+    // Try to enter fullscreen (best effort — must be from user gesture)
+    try {
+      await document.documentElement.requestFullscreen?.();
+    } catch {}
     setTimeout(() => {
       setState("in_progress");
     }, 3000);
   };
+
 
   const handleEndCall = () => {
     if (callTimerRef.current) {
