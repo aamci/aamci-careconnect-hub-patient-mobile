@@ -62,31 +62,75 @@ export default function TeleconsultationPage() {
   const { data: appointments, isLoading } = useAppointments();
   const appointment = appointments?.find((a) => a.id === id);
 
-  useEffect(() => {
-    const checkPermissions = async () => {
-      setCheckingPermissions(true);
-      
-      try {
-        // Request camera permission
-        await navigator.mediaDevices.getUserMedia({ video: true });
-        setCameraOk(true);
-      } catch {
-        setCameraOk(false);
+  const attachStreamToVideos = (stream: MediaStream | null) => {
+    [previewVideoRef.current, localVideoMainRef.current, localVideoPipRef.current].forEach(v => {
+      if (v && v.srcObject !== stream) {
+        v.srcObject = stream;
+        if (stream) v.play().catch(() => {});
       }
-      
-      try {
-        // Request mic permission
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-        setMicOk(true);
-      } catch {
-        setMicOk(false);
-      }
-      
-      setCheckingPermissions(false);
-    };
+    });
+  };
 
-    checkPermissions();
+  const acquireStream = async (mode: "user" | "environment" = facingMode) => {
+    // Stop previous tracks
+    localStreamRef.current?.getTracks().forEach(t => t.stop());
+    localStreamRef.current = null;
+
+    let stream: MediaStream | null = null;
+    let camOk = false;
+    let micOkLocal = false;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: mode } },
+        audio: true,
+      });
+      camOk = stream.getVideoTracks().length > 0;
+      micOkLocal = stream.getAudioTracks().length > 0;
+    } catch {
+      // Try audio only fallback
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micOkLocal = !!stream?.getAudioTracks().length;
+      } catch {
+        stream = null;
+      }
+    }
+    localStreamRef.current = stream;
+    setCameraOk(camOk);
+    setMicOk(micOkLocal);
+    // apply current toggles
+    stream?.getVideoTracks().forEach(t => (t.enabled = videoEnabled));
+    stream?.getAudioTracks().forEach(t => (t.enabled = audioEnabled));
+    attachStreamToVideos(stream);
+    return stream;
+  };
+
+  useEffect(() => {
+    (async () => {
+      setCheckingPermissions(true);
+      await acquireStream();
+      setCheckingPermissions(false);
+    })();
+    return () => {
+      localStreamRef.current?.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-attach stream when video elements mount (state transitions)
+  useEffect(() => {
+    attachStreamToVideos(localStreamRef.current);
+  }, [state, mainView, videoEnabled]);
+
+  // Apply toggles to tracks
+  useEffect(() => {
+    localStreamRef.current?.getVideoTracks().forEach(t => (t.enabled = videoEnabled));
+  }, [videoEnabled]);
+  useEffect(() => {
+    localStreamRef.current?.getAudioTracks().forEach(t => (t.enabled = audioEnabled));
+  }, [audioEnabled]);
+
 
   useEffect(() => {
     if (state === "in_progress") {
