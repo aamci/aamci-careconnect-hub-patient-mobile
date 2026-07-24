@@ -342,6 +342,9 @@ export default function SettingsPage() {
           MédiSanté v1.0.0
         </p>
       </div>
+
+      <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
     </PageContainer>
   );
+
 }
