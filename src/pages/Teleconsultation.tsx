@@ -51,7 +51,13 @@ export default function TeleconsultationPage() {
   const [showChat, setShowChat] = useState(false);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [networkQuality, setNetworkQuality] = useState<"good" | "fair" | "poor">("good");
+  const [mainView, setMainView] = useState<"remote" | "local">("remote");
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const localVideoMainRef = useRef<HTMLVideoElement | null>(null);
+  const localVideoPipRef = useRef<HTMLVideoElement | null>(null);
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
+
 
   const { data: appointments, isLoading } = useAppointments();
   const appointment = appointments?.find((a) => a.id === id);
