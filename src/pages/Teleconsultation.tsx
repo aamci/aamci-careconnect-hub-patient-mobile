@@ -827,8 +827,9 @@ export default function TeleconsultationPage() {
 
   // Ended
   return (
-    <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-4 py-6">
-      <div className="text-center space-y-6 max-w-sm">
+    <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-4 py-6 overflow-y-auto">
+      <div className="text-center space-y-6 max-w-sm w-full my-auto">
+
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30">
           <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
         </div>
