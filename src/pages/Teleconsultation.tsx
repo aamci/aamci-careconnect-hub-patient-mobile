@@ -643,8 +643,9 @@ export default function TeleconsultationPage() {
                 ) : (
                   <SignalLow className="h-3.5 w-3.5 text-white" />
                 )}
-                <span className="text-white text-xs font-medium hidden xs:inline sm:inline">
+                <span className="text-white text-xs font-medium hidden sm:inline">
                   {networkQuality === "good" ? "Bonne" : networkQuality === "fair" ? "Moyenne" : "Faible"}
+                  {typeof netStats.rtt === "number" && ` · ${netStats.rtt}ms`}
                 </span>
               </div>
               <div className="bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
@@ -654,7 +655,23 @@ export default function TeleconsultationPage() {
               </div>
             </div>
           </div>
+          <div className="flex items-center gap-2 mt-2">
+            {lowBandwidth && (
+              <span className="flex items-center gap-1 bg-amber-500/90 text-white text-[10px] font-medium px-2 py-1 rounded-full">
+                <Gauge className="h-3 w-3" /> Mode bande passante faible
+              </span>
+            )}
+            {!audioEnabled && (
+              <span className="flex items-center gap-1 bg-destructive text-destructive-foreground text-[10px] font-medium px-2 py-1 rounded-full">
+                <MicOff className="h-3 w-3" /> Micro coupé
+              </span>
+            )}
+            <span className="bg-black/40 backdrop-blur-sm text-white/70 text-[10px] px-2 py-1 rounded-full">
+              {videoProfile === "hd" ? "720p 30fps" : videoProfile === "sd" ? "360p 24fps" : "240p 15fps"}
+            </span>
+          </div>
         </div>
+
 
         {/* PiP tile — the OTHER participant. Tap to swap. */}
         <button
