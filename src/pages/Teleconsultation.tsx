@@ -14,7 +14,7 @@ import {
   Loader2,
   ScreenShare,
   ScreenShareOff,
-  Volume2,
+  Volume2, 
   VolumeX,
   RotateCcw,
   Camera,
@@ -22,14 +22,19 @@ import {
   Signal,
   SignalLow,
   SignalMedium,
-  SignalHigh
+  SignalHigh,
+  Gauge,
+  ScrollText,
+  ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/common/Card";
 import { Avatar } from "@/components/common/Avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { useAppointments } from "@/hooks/useAppointments";
+import { useCallLog } from "@/hooks/useCallLog";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -52,15 +57,25 @@ export default function TeleconsultationPage() {
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [networkQuality, setNetworkQuality] = useState<"good" | "fair" | "poor">("good");
   const [mainView, setMainView] = useState<"remote" | "local">("remote");
+  const [micLevel, setMicLevel] = useState(0);
+  const [micGain, setMicGain] = useState(100);
+  const [lowBandwidth, setLowBandwidth] = useState(false);
+  const [autoLowBandwidth, setAutoLowBandwidth] = useState(true);
+  const [videoProfile, setVideoProfile] = useState<"hd" | "sd" | "low">("hd");
+  const [netStats, setNetStats] = useState<{ rtt?: number; downlink?: number }>({});
+  const [showLog, setShowLog] = useState(false);
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const localVideoMainRef = useRef<HTMLVideoElement | null>(null);
   const localVideoPipRef = useRef<HTMLVideoElement | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
-
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const micGainRef = useRef(1);
 
   const { data: appointments, isLoading } = useAppointments();
   const appointment = appointments?.find((a) => a.id === id);
+  const { entries: callLog, log, startSession, saveSession } = useCallLog(id);
 
   const attachStreamToVideos = (stream: MediaStream | null) => {
     [previewVideoRef.current, localVideoMainRef.current, localVideoPipRef.current].forEach(v => {
@@ -71,28 +86,62 @@ export default function TeleconsultationPage() {
     });
   };
 
+  // Profils vidéo — latence/rendu adaptés à la bande passante
+  const VIDEO_PROFILES = {
+    hd: { width: 1280, height: 720, frameRate: 30 },
+    sd: { width: 640, height: 360, frameRate: 24 },
+    low: { width: 320, height: 240, frameRate: 15 },
+  } as const;
+
+  const applyVideoProfile = async (profile: "hd" | "sd" | "low") => {
+    const track = localStreamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    const p = VIDEO_PROFILES[profile];
+    try {
+      await track.applyConstraints({
+        width: { ideal: p.width },
+        height: { ideal: p.height },
+        frameRate: { ideal: p.frameRate, max: p.frameRate },
+      });
+      setVideoProfile(profile);
+      log("Profil vidéo appliqué", `${p.width}x${p.height} @ ${p.frameRate}fps`);
+    } catch (e) {
+      log("Échec du changement de profil vidéo", String(e), "warn");
+    }
+  };
+
   const acquireStream = async (mode: "user" | "environment" = facingMode) => {
     // Stop previous tracks
     localStreamRef.current?.getTracks().forEach(t => t.stop());
     localStreamRef.current = null;
 
+    const p = VIDEO_PROFILES[lowBandwidth ? "low" : videoProfile];
     let stream: MediaStream | null = null;
     let camOk = false;
     let micOkLocal = false;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: mode } },
-        audio: true,
+        video: {
+          facingMode: { ideal: mode },
+          width: { ideal: p.width },
+          height: { ideal: p.height },
+          frameRate: { ideal: p.frameRate, max: p.frameRate },
+        },
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
       camOk = stream.getVideoTracks().length > 0;
       micOkLocal = stream.getAudioTracks().length > 0;
-    } catch {
+      log("Flux média acquis", `caméra: ${camOk ? "ok" : "ko"}, micro: ${micOkLocal ? "ok" : "ko"}`);
+    } catch (err) {
+      log("Accès caméra refusé ou indisponible", String(err), "error");
       // Try audio only fallback
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         micOkLocal = !!stream?.getAudioTracks().length;
-      } catch {
+        log("Repli audio uniquement", undefined, "warn");
+      } catch (err2) {
         stream = null;
+        log("Aucun périphérique disponible", String(err2), "error");
       }
     }
     localStreamRef.current = stream;
@@ -114,6 +163,8 @@ export default function TeleconsultationPage() {
     return () => {
       localStreamRef.current?.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      audioCtxRef.current?.close().catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -126,10 +177,58 @@ export default function TeleconsultationPage() {
   // Apply toggles to tracks
   useEffect(() => {
     localStreamRef.current?.getVideoTracks().forEach(t => (t.enabled = videoEnabled));
+    log(videoEnabled ? "Caméra activée" : "Caméra coupée");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoEnabled]);
   useEffect(() => {
     localStreamRef.current?.getAudioTracks().forEach(t => (t.enabled = audioEnabled));
+    log(audioEnabled ? "Micro activé" : "Micro coupé (sourdine)");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioEnabled]);
+
+  // Vu-mètre micro (niveau d'entrée en temps réel)
+  useEffect(() => {
+    micGainRef.current = micGain / 100;
+  }, [micGain]);
+
+  useEffect(() => {
+    const stream = localStreamRef.current;
+    if (!micOk || !stream || (state !== "in_progress" && state !== "checking")) return;
+    let cancelled = false;
+    try {
+      const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new Ctx();
+      audioCtxRef.current = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const tick = () => {
+        if (cancelled) return;
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = (data[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        const level = audioEnabled ? Math.min(100, rms * 300 * micGainRef.current) : 0;
+        setMicLevel(level);
+        rafRef.current = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch {
+      /* AudioContext indisponible */
+    }
+    return () => {
+      cancelled = true;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      audioCtxRef.current?.close().catch(() => {});
+      audioCtxRef.current = null;
+    };
+  }, [micOk, state, audioEnabled]);
+
 
 
   useEffect(() => {
@@ -157,6 +256,7 @@ export default function TeleconsultationPage() {
         const et = conn.effectiveType as string | undefined;
         const dl = conn.downlink as number | undefined;
         const rtt = conn.rtt as number | undefined;
+        setNetStats({ rtt, downlink: dl });
         if (et === "4g" && (dl ?? 5) >= 2 && (rtt ?? 100) < 300) {
           setNetworkQuality("good");
         } else if (et === "3g" || ((dl ?? 1) >= 0.7)) {
@@ -183,6 +283,27 @@ export default function TeleconsultationPage() {
     };
   }, [state]);
 
+  // Dégradation / restauration automatique selon la qualité réseau
+  useEffect(() => {
+    if (state !== "in_progress" || !autoLowBandwidth) return;
+    if (networkQuality === "poor" && !lowBandwidth) {
+      setLowBandwidth(true);
+      log("Bande passante faible détectée — dégradation automatique", undefined, "warn");
+    } else if (networkQuality === "good" && lowBandwidth) {
+      setLowBandwidth(false);
+      log("Réseau rétabli — qualité vidéo restaurée");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [networkQuality, state, autoLowBandwidth]);
+
+  // Application du profil vidéo
+  useEffect(() => {
+    if (state !== "in_progress") return;
+    const target = lowBandwidth ? "low" : networkQuality === "fair" ? "sd" : "hd";
+    if (target !== videoProfile) applyVideoProfile(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lowBandwidth, networkQuality, state]);
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -191,13 +312,19 @@ export default function TeleconsultationPage() {
 
   const handleJoinCall = async () => {
     if (!localStreamRef.current) await acquireStream();
+    startSession();
+    log("Appel démarré");
     setState("waiting");
     // Try to enter fullscreen (best effort — must be from user gesture)
     try {
       await document.documentElement.requestFullscreen?.();
-    } catch {}
+      log("Passage en plein écran");
+    } catch {
+      log("Plein écran indisponible", undefined, "warn");
+    }
     setTimeout(() => {
       setState("in_progress");
+      log("Praticien connecté");
     }, 3000);
   };
 
@@ -209,6 +336,9 @@ export default function TeleconsultationPage() {
     localStreamRef.current?.getTracks().forEach(t => t.stop());
     localStreamRef.current = null;
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    const finalEntry = { at: new Date().toISOString(), level: "info" as const, event: "Appel terminé", detail: `Durée ${formatDuration(callDuration)}` };
+    saveSession(callDuration, [...callLog, finalEntry]);
+    log("Appel terminé", `Durée ${formatDuration(callDuration)}`);
     setState("ended");
   };
 
@@ -219,6 +349,7 @@ export default function TeleconsultationPage() {
 
   const handleRetryPermissions = async () => {
     setCheckingPermissions(true);
+    log("Nouvelle demande d'autorisations");
     await acquireStream();
     setCheckingPermissions(false);
   };
@@ -226,8 +357,10 @@ export default function TeleconsultationPage() {
   const handleSwitchCamera = async () => {
     const next = facingMode === "user" ? "environment" : "user";
     setFacingMode(next);
+    log("Bascule caméra", next === "user" ? "avant" : "arrière");
     await acquireStream(next);
   };
+
 
 
   if (isLoading) {
@@ -510,8 +643,9 @@ export default function TeleconsultationPage() {
                 ) : (
                   <SignalLow className="h-3.5 w-3.5 text-white" />
                 )}
-                <span className="text-white text-xs font-medium hidden xs:inline sm:inline">
+                <span className="text-white text-xs font-medium hidden sm:inline">
                   {networkQuality === "good" ? "Bonne" : networkQuality === "fair" ? "Moyenne" : "Faible"}
+                  {typeof netStats.rtt === "number" && ` · ${netStats.rtt}ms`}
                 </span>
               </div>
               <div className="bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
@@ -521,7 +655,23 @@ export default function TeleconsultationPage() {
               </div>
             </div>
           </div>
+          <div className="flex items-center gap-2 mt-2">
+            {lowBandwidth && (
+              <span className="flex items-center gap-1 bg-amber-500/90 text-white text-[10px] font-medium px-2 py-1 rounded-full">
+                <Gauge className="h-3 w-3" /> Mode bande passante faible
+              </span>
+            )}
+            {!audioEnabled && (
+              <span className="flex items-center gap-1 bg-destructive text-destructive-foreground text-[10px] font-medium px-2 py-1 rounded-full">
+                <MicOff className="h-3 w-3" /> Micro coupé
+              </span>
+            )}
+            <span className="bg-black/40 backdrop-blur-sm text-white/70 text-[10px] px-2 py-1 rounded-full">
+              {videoProfile === "hd" ? "720p 30fps" : videoProfile === "sd" ? "360p 24fps" : "240p 15fps"}
+            </span>
+          </div>
         </div>
+
 
         {/* PiP tile — the OTHER participant. Tap to swap. */}
         <button
@@ -586,18 +736,46 @@ export default function TeleconsultationPage() {
 
         {/* Bottom controls — floating over video */}
         <div className="absolute bottom-0 left-0 right-0 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-8 px-6 bg-gradient-to-t from-black/70 to-transparent z-10">
+          {/* Vu-mètre micro + volume d'entrée */}
+          <div className="mx-auto mb-4 max-w-xs bg-black/40 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/10">
+            <div className="flex items-center gap-3">
+              {audioEnabled ? <Mic className="h-4 w-4 text-white/80 shrink-0" /> : <MicOff className="h-4 w-4 text-destructive shrink-0" />}
+              <div className="flex-1 h-1.5 rounded-full bg-white/15 overflow-hidden" aria-label="Niveau du micro">
+                <div
+                  className={cn("h-full rounded-full transition-all duration-75", audioEnabled ? "bg-emerald-400" : "bg-white/20")}
+                  style={{ width: `${Math.round(micLevel)}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-white/60 w-9 text-right tabular-nums">{micGain}%</span>
+            </div>
+            <Slider
+              value={[micGain]}
+              onValueChange={(v) => setMicGain(v[0])}
+              min={0}
+              max={200}
+              step={5}
+              className="mt-3"
+              aria-label="Volume du micro"
+            />
+          </div>
           <div className="flex items-center justify-center gap-4 sm:gap-5">
             <button 
               onClick={() => setAudioEnabled(!audioEnabled)}
+              aria-pressed={!audioEnabled}
+              aria-label={audioEnabled ? "Couper le micro" : "Réactiver le micro"}
               className={cn(
-                "p-4 rounded-full min-w-[56px] min-h-[56px] flex items-center justify-center shadow-lg transition-all",
+                "relative p-4 rounded-full min-w-[56px] min-h-[56px] flex items-center justify-center shadow-lg transition-all",
                 audioEnabled 
                   ? "bg-white/20 backdrop-blur-sm text-white hover:bg-white/30" 
                   : "bg-destructive text-destructive-foreground"
               )}
             >
               {audioEnabled ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
+              {audioEnabled && micLevel > 8 && (
+                <span className="absolute inset-0 rounded-full ring-2 ring-emerald-400/80 animate-pulse" />
+              )}
             </button>
+
 
             <button 
               onClick={() => setVideoEnabled(!videoEnabled)}
@@ -649,8 +827,9 @@ export default function TeleconsultationPage() {
 
   // Ended
   return (
-    <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-4 py-6">
-      <div className="text-center space-y-6 max-w-sm">
+    <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-4 py-6 overflow-y-auto">
+      <div className="text-center space-y-6 max-w-sm w-full my-auto">
+
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30">
           <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
         </div>
@@ -683,6 +862,49 @@ export default function TeleconsultationPage() {
           </ul>
         </Card>
 
+        {/* Journal d'appel */}
+        <Card className="p-4 text-left">
+          <button
+            type="button"
+            onClick={() => setShowLog((v) => !v)}
+            className="w-full flex items-center justify-between gap-2 min-h-[44px]"
+            aria-expanded={showLog}
+          >
+            <span className="flex items-center gap-2 font-semibold">
+              <ScrollText className="h-4 w-4 text-primary" />
+              Journal d'appel
+            </span>
+            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+              {callLog.length} événements
+              <ChevronDown className={cn("h-4 w-4 transition-transform", showLog && "rotate-180")} />
+            </span>
+          </button>
+          {showLog && (
+            <div className="mt-3 max-h-64 overflow-y-auto space-y-2 border-t pt-3">
+              {callLog.length === 0 && (
+                <p className="text-xs text-muted-foreground">Aucun événement enregistré.</p>
+              )}
+              {callLog.map((e, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs">
+                  <span className="font-mono text-muted-foreground shrink-0">
+                    {format(new Date(e.at), "HH:mm:ss")}
+                  </span>
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full mt-1.5 shrink-0",
+                      e.level === "error" ? "bg-destructive" : e.level === "warn" ? "bg-amber-500" : "bg-primary"
+                    )}
+                  />
+                  <span className="min-w-0">
+                    <span className="font-medium">{e.event}</span>
+                    {e.detail && <span className="text-muted-foreground block break-words">{e.detail}</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
         <div className="space-y-3">
           <Button className="w-full" onClick={() => navigate("/documents")}>
             Voir mes documents
@@ -691,6 +913,7 @@ export default function TeleconsultationPage() {
             Retour à l'accueil
           </Button>
         </div>
+
       </div>
     </div>
   );
