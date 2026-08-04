@@ -861,6 +861,49 @@ export default function TeleconsultationPage() {
           </ul>
         </Card>
 
+        {/* Journal d'appel */}
+        <Card className="p-4 text-left">
+          <button
+            type="button"
+            onClick={() => setShowLog((v) => !v)}
+            className="w-full flex items-center justify-between gap-2 min-h-[44px]"
+            aria-expanded={showLog}
+          >
+            <span className="flex items-center gap-2 font-semibold">
+              <ScrollText className="h-4 w-4 text-primary" />
+              Journal d'appel
+            </span>
+            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+              {callLog.length} événements
+              <ChevronDown className={cn("h-4 w-4 transition-transform", showLog && "rotate-180")} />
+            </span>
+          </button>
+          {showLog && (
+            <div className="mt-3 max-h-64 overflow-y-auto space-y-2 border-t pt-3">
+              {callLog.length === 0 && (
+                <p className="text-xs text-muted-foreground">Aucun événement enregistré.</p>
+              )}
+              {callLog.map((e, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs">
+                  <span className="font-mono text-muted-foreground shrink-0">
+                    {format(new Date(e.at), "HH:mm:ss")}
+                  </span>
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full mt-1.5 shrink-0",
+                      e.level === "error" ? "bg-destructive" : e.level === "warn" ? "bg-amber-500" : "bg-primary"
+                    )}
+                  />
+                  <span className="min-w-0">
+                    <span className="font-medium">{e.event}</span>
+                    {e.detail && <span className="text-muted-foreground block break-words">{e.detail}</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
         <div className="space-y-3">
           <Button className="w-full" onClick={() => navigate("/documents")}>
             Voir mes documents
@@ -869,6 +912,7 @@ export default function TeleconsultationPage() {
             Retour à l'accueil
           </Button>
         </div>
+
       </div>
     </div>
   );
