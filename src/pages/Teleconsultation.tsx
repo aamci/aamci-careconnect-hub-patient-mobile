@@ -256,6 +256,7 @@ export default function TeleconsultationPage() {
         const et = conn.effectiveType as string | undefined;
         const dl = conn.downlink as number | undefined;
         const rtt = conn.rtt as number | undefined;
+        setNetStats({ rtt, downlink: dl });
         if (et === "4g" && (dl ?? 5) >= 2 && (rtt ?? 100) < 300) {
           setNetworkQuality("good");
         } else if (et === "3g" || ((dl ?? 1) >= 0.7)) {
@@ -282,6 +283,27 @@ export default function TeleconsultationPage() {
     };
   }, [state]);
 
+  // Dégradation / restauration automatique selon la qualité réseau
+  useEffect(() => {
+    if (state !== "in_progress" || !autoLowBandwidth) return;
+    if (networkQuality === "poor" && !lowBandwidth) {
+      setLowBandwidth(true);
+      log("Bande passante faible détectée — dégradation automatique", undefined, "warn");
+    } else if (networkQuality === "good" && lowBandwidth) {
+      setLowBandwidth(false);
+      log("Réseau rétabli — qualité vidéo restaurée");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [networkQuality, state, autoLowBandwidth]);
+
+  // Application du profil vidéo
+  useEffect(() => {
+    if (state !== "in_progress") return;
+    const target = lowBandwidth ? "low" : networkQuality === "fair" ? "sd" : "hd";
+    if (target !== videoProfile) applyVideoProfile(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lowBandwidth, networkQuality, state]);
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -290,13 +312,19 @@ export default function TeleconsultationPage() {
 
   const handleJoinCall = async () => {
     if (!localStreamRef.current) await acquireStream();
+    startSession();
+    log("Appel démarré");
     setState("waiting");
     // Try to enter fullscreen (best effort — must be from user gesture)
     try {
       await document.documentElement.requestFullscreen?.();
-    } catch {}
+      log("Passage en plein écran");
+    } catch {
+      log("Plein écran indisponible", undefined, "warn");
+    }
     setTimeout(() => {
       setState("in_progress");
+      log("Praticien connecté");
     }, 3000);
   };
 
@@ -308,6 +336,9 @@ export default function TeleconsultationPage() {
     localStreamRef.current?.getTracks().forEach(t => t.stop());
     localStreamRef.current = null;
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    const finalEntry = { at: new Date().toISOString(), level: "info" as const, event: "Appel terminé", detail: `Durée ${formatDuration(callDuration)}` };
+    saveSession(callDuration, [...callLog, finalEntry]);
+    log("Appel terminé", `Durée ${formatDuration(callDuration)}`);
     setState("ended");
   };
 
@@ -318,6 +349,7 @@ export default function TeleconsultationPage() {
 
   const handleRetryPermissions = async () => {
     setCheckingPermissions(true);
+    log("Nouvelle demande d'autorisations");
     await acquireStream();
     setCheckingPermissions(false);
   };
@@ -325,8 +357,10 @@ export default function TeleconsultationPage() {
   const handleSwitchCamera = async () => {
     const next = facingMode === "user" ? "environment" : "user";
     setFacingMode(next);
+    log("Bascule caméra", next === "user" ? "avant" : "arrière");
     await acquireStream(next);
   };
+
 
 
   if (isLoading) {
