@@ -14,7 +14,7 @@ import {
   Loader2,
   ScreenShare,
   ScreenShareOff,
-  Volume2,
+  Volume2, 
   VolumeX,
   RotateCcw,
   Camera,
@@ -22,14 +22,19 @@ import {
   Signal,
   SignalLow,
   SignalMedium,
-  SignalHigh
+  SignalHigh,
+  Gauge,
+  ScrollText,
+  ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/common/Card";
 import { Avatar } from "@/components/common/Avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { useAppointments } from "@/hooks/useAppointments";
+import { useCallLog } from "@/hooks/useCallLog";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
