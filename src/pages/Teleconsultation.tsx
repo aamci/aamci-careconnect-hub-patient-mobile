@@ -57,15 +57,25 @@ export default function TeleconsultationPage() {
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [networkQuality, setNetworkQuality] = useState<"good" | "fair" | "poor">("good");
   const [mainView, setMainView] = useState<"remote" | "local">("remote");
+  const [micLevel, setMicLevel] = useState(0);
+  const [micGain, setMicGain] = useState(100);
+  const [lowBandwidth, setLowBandwidth] = useState(false);
+  const [autoLowBandwidth, setAutoLowBandwidth] = useState(true);
+  const [videoProfile, setVideoProfile] = useState<"hd" | "sd" | "low">("hd");
+  const [netStats, setNetStats] = useState<{ rtt?: number; downlink?: number }>({});
+  const [showLog, setShowLog] = useState(false);
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const localVideoMainRef = useRef<HTMLVideoElement | null>(null);
   const localVideoPipRef = useRef<HTMLVideoElement | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
-
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const micGainRef = useRef(1);
 
   const { data: appointments, isLoading } = useAppointments();
   const appointment = appointments?.find((a) => a.id === id);
+  const { entries: callLog, log, startSession, saveSession } = useCallLog(id);
 
   const attachStreamToVideos = (stream: MediaStream | null) => {
     [previewVideoRef.current, localVideoMainRef.current, localVideoPipRef.current].forEach(v => {
@@ -76,28 +86,62 @@ export default function TeleconsultationPage() {
     });
   };
 
+  // Profils vidéo — latence/rendu adaptés à la bande passante
+  const VIDEO_PROFILES = {
+    hd: { width: 1280, height: 720, frameRate: 30 },
+    sd: { width: 640, height: 360, frameRate: 24 },
+    low: { width: 320, height: 240, frameRate: 15 },
+  } as const;
+
+  const applyVideoProfile = async (profile: "hd" | "sd" | "low") => {
+    const track = localStreamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    const p = VIDEO_PROFILES[profile];
+    try {
+      await track.applyConstraints({
+        width: { ideal: p.width },
+        height: { ideal: p.height },
+        frameRate: { ideal: p.frameRate, max: p.frameRate },
+      });
+      setVideoProfile(profile);
+      log("Profil vidéo appliqué", `${p.width}x${p.height} @ ${p.frameRate}fps`);
+    } catch (e) {
+      log("Échec du changement de profil vidéo", String(e), "warn");
+    }
+  };
+
   const acquireStream = async (mode: "user" | "environment" = facingMode) => {
     // Stop previous tracks
     localStreamRef.current?.getTracks().forEach(t => t.stop());
     localStreamRef.current = null;
 
+    const p = VIDEO_PROFILES[lowBandwidth ? "low" : videoProfile];
     let stream: MediaStream | null = null;
     let camOk = false;
     let micOkLocal = false;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: mode } },
-        audio: true,
+        video: {
+          facingMode: { ideal: mode },
+          width: { ideal: p.width },
+          height: { ideal: p.height },
+          frameRate: { ideal: p.frameRate, max: p.frameRate },
+        },
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
       camOk = stream.getVideoTracks().length > 0;
       micOkLocal = stream.getAudioTracks().length > 0;
-    } catch {
+      log("Flux média acquis", `caméra: ${camOk ? "ok" : "ko"}, micro: ${micOkLocal ? "ok" : "ko"}`);
+    } catch (err) {
+      log("Accès caméra refusé ou indisponible", String(err), "error");
       // Try audio only fallback
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         micOkLocal = !!stream?.getAudioTracks().length;
-      } catch {
+        log("Repli audio uniquement", undefined, "warn");
+      } catch (err2) {
         stream = null;
+        log("Aucun périphérique disponible", String(err2), "error");
       }
     }
     localStreamRef.current = stream;
@@ -119,6 +163,8 @@ export default function TeleconsultationPage() {
     return () => {
       localStreamRef.current?.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      audioCtxRef.current?.close().catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -131,10 +177,58 @@ export default function TeleconsultationPage() {
   // Apply toggles to tracks
   useEffect(() => {
     localStreamRef.current?.getVideoTracks().forEach(t => (t.enabled = videoEnabled));
+    log(videoEnabled ? "Caméra activée" : "Caméra coupée");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoEnabled]);
   useEffect(() => {
     localStreamRef.current?.getAudioTracks().forEach(t => (t.enabled = audioEnabled));
+    log(audioEnabled ? "Micro activé" : "Micro coupé (sourdine)");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioEnabled]);
+
+  // Vu-mètre micro (niveau d'entrée en temps réel)
+  useEffect(() => {
+    micGainRef.current = micGain / 100;
+  }, [micGain]);
+
+  useEffect(() => {
+    const stream = localStreamRef.current;
+    if (!micOk || !stream || (state !== "in_progress" && state !== "checking")) return;
+    let cancelled = false;
+    try {
+      const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new Ctx();
+      audioCtxRef.current = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const tick = () => {
+        if (cancelled) return;
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = (data[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        const level = audioEnabled ? Math.min(100, rms * 300 * micGainRef.current) : 0;
+        setMicLevel(level);
+        rafRef.current = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch {
+      /* AudioContext indisponible */
+    }
+    return () => {
+      cancelled = true;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      audioCtxRef.current?.close().catch(() => {});
+      audioCtxRef.current = null;
+    };
+  }, [micOk, state, audioEnabled]);
+
 
 
   useEffect(() => {
