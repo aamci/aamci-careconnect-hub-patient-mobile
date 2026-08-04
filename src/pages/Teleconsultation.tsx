@@ -736,18 +736,46 @@ export default function TeleconsultationPage() {
 
         {/* Bottom controls — floating over video */}
         <div className="absolute bottom-0 left-0 right-0 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-8 px-6 bg-gradient-to-t from-black/70 to-transparent z-10">
+          {/* Vu-mètre micro + volume d'entrée */}
+          <div className="mx-auto mb-4 max-w-xs bg-black/40 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/10">
+            <div className="flex items-center gap-3">
+              {audioEnabled ? <Mic className="h-4 w-4 text-white/80 shrink-0" /> : <MicOff className="h-4 w-4 text-destructive shrink-0" />}
+              <div className="flex-1 h-1.5 rounded-full bg-white/15 overflow-hidden" aria-label="Niveau du micro">
+                <div
+                  className={cn("h-full rounded-full transition-all duration-75", audioEnabled ? "bg-emerald-400" : "bg-white/20")}
+                  style={{ width: `${Math.round(micLevel)}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-white/60 w-9 text-right tabular-nums">{micGain}%</span>
+            </div>
+            <Slider
+              value={[micGain]}
+              onValueChange={(v) => setMicGain(v[0])}
+              min={0}
+              max={200}
+              step={5}
+              className="mt-3"
+              aria-label="Volume du micro"
+            />
+          </div>
           <div className="flex items-center justify-center gap-4 sm:gap-5">
             <button 
               onClick={() => setAudioEnabled(!audioEnabled)}
+              aria-pressed={!audioEnabled}
+              aria-label={audioEnabled ? "Couper le micro" : "Réactiver le micro"}
               className={cn(
-                "p-4 rounded-full min-w-[56px] min-h-[56px] flex items-center justify-center shadow-lg transition-all",
+                "relative p-4 rounded-full min-w-[56px] min-h-[56px] flex items-center justify-center shadow-lg transition-all",
                 audioEnabled 
                   ? "bg-white/20 backdrop-blur-sm text-white hover:bg-white/30" 
                   : "bg-destructive text-destructive-foreground"
               )}
             >
               {audioEnabled ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
+              {audioEnabled && micLevel > 8 && (
+                <span className="absolute inset-0 rounded-full ring-2 ring-emerald-400/80 animate-pulse" />
+              )}
             </button>
+
 
             <button 
               onClick={() => setVideoEnabled(!videoEnabled)}
