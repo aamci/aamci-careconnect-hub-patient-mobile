@@ -64,6 +64,10 @@ export default function TeleconsultationPage() {
   const [videoProfile, setVideoProfile] = useState<"hd" | "sd" | "low">("hd");
   const [netStats, setNetStats] = useState<{ rtt?: number; downlink?: number }>({});
   const [showLog, setShowLog] = useState(false);
+  const [mediaRecovering, setMediaRecovering] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recoveryAttemptRef = useRef(0);
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const localVideoMainRef = useRef<HTMLVideoElement | null>(null);
