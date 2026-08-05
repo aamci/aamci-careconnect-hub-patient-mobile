@@ -73,7 +73,7 @@ export default function Index() {
       <PageContainer noPadding className="overflow-x-hidden">
         {/* Header */}
         <div className="bg-gradient-hero">
-          <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
+          <div className="px-4 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] pb-4 max-w-lg mx-auto">
             <div className="flex items-center justify-between gap-4 mb-6">
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-muted-foreground">Bonjour,</p>
