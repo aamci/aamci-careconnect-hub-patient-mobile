@@ -125,6 +125,10 @@
     --sidebar-accent-foreground: 210 20% 96%;
     --sidebar-border: 210 30% 18%;
     --sidebar-ring: 174 55% 50%;
+
+    /* Dégradés adaptés au thème sombre (évite le bandeau blanc en haut) */
+    --gradient-hero: linear-gradient(180deg, hsl(210, 40%, 9%) 0%, hsl(210, 35%, 11%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(210, 35%, 11%) 0%, hsl(210, 35%, 9%) 100%);
   }
 }
 

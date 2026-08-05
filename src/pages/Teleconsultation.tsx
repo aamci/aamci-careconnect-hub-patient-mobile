@@ -64,6 +64,10 @@ export default function TeleconsultationPage() {
   const [videoProfile, setVideoProfile] = useState<"hd" | "sd" | "low">("hd");
   const [netStats, setNetStats] = useState<{ rtt?: number; downlink?: number }>({});
   const [showLog, setShowLog] = useState(false);
+  const [mediaRecovering, setMediaRecovering] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recoveryAttemptRef = useRef(0);
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const localVideoMainRef = useRef<HTMLVideoElement | null>(null);
@@ -110,6 +114,16 @@ export default function TeleconsultationPage() {
     }
   };
 
+  // Surveillance des pistes : relance silencieuse si une piste tombe
+  const watchTracks = (stream: MediaStream | null) => {
+    stream?.getTracks().forEach((t) => {
+      t.onended = () => {
+        log(`Piste ${t.kind} interrompue`, undefined, "warn");
+        scheduleRecovery();
+      };
+    });
+  };
+
   const acquireStream = async (mode: "user" | "environment" = facingMode) => {
     // Stop previous tracks
     localStreamRef.current?.getTracks().forEach(t => t.stop());
@@ -119,8 +133,9 @@ export default function TeleconsultationPage() {
     let stream: MediaStream | null = null;
     let camOk = false;
     let micOkLocal = false;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
+    // Tentatives progressives : contraintes idéales → contraintes minimales → audio seul
+    const attempts: MediaStreamConstraints[] = [
+      {
         video: {
           facingMode: { ideal: mode },
           width: { ideal: p.width },
@@ -128,13 +143,27 @@ export default function TeleconsultationPage() {
           frameRate: { ideal: p.frameRate, max: p.frameRate },
         },
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
-      camOk = stream.getVideoTracks().length > 0;
-      micOkLocal = stream.getAudioTracks().length > 0;
-      log("Flux média acquis", `caméra: ${camOk ? "ok" : "ko"}, micro: ${micOkLocal ? "ok" : "ko"}`);
-    } catch (err) {
-      log("Accès caméra refusé ou indisponible", String(err), "error");
-      // Try audio only fallback
+      },
+      { video: { facingMode: { ideal: mode } }, audio: true },
+      { video: true, audio: true },
+      { video: true, audio: false },
+    ];
+
+    for (const constraints of attempts) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        camOk = stream.getVideoTracks().length > 0;
+        micOkLocal = stream.getAudioTracks().length > 0;
+        log("Flux média acquis", `caméra: ${camOk ? "ok" : "ko"}, micro: ${micOkLocal ? "ok" : "ko"}`);
+        break;
+      } catch (err) {
+        stream = null;
+        log("Tentative d'accès média échouée", String(err), "warn");
+      }
+    }
+
+    if (!stream) {
+      // Repli audio uniquement
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         micOkLocal = !!stream?.getAudioTracks().length;
@@ -144,27 +173,80 @@ export default function TeleconsultationPage() {
         log("Aucun périphérique disponible", String(err2), "error");
       }
     }
+
     localStreamRef.current = stream;
     setCameraOk(camOk);
     setMicOk(micOkLocal);
     // apply current toggles
     stream?.getVideoTracks().forEach(t => (t.enabled = videoEnabled));
     stream?.getAudioTracks().forEach(t => (t.enabled = audioEnabled));
+    watchTracks(stream);
     attachStreamToVideos(stream);
     return stream;
+  };
+
+  // Récupération automatique et progressive (backoff), sans bloquer l'interface
+  const scheduleRecovery = () => {
+    if (recoveryTimerRef.current) return;
+    const attempt = recoveryAttemptRef.current;
+    if (attempt >= 6) {
+      setMediaRecovering(false);
+      log("Récupération média abandonnée après plusieurs tentatives", undefined, "error");
+      return;
+    }
+    const delay = Math.min(8000, 800 * Math.pow(2, attempt));
+    recoveryAttemptRef.current = attempt + 1;
+    setMediaRecovering(true);
+    recoveryTimerRef.current = setTimeout(async () => {
+      recoveryTimerRef.current = null;
+      const stream = await acquireStream();
+      const ok = !!stream && (stream.getVideoTracks().length > 0 || stream.getAudioTracks().length > 0);
+      if (ok) {
+        recoveryAttemptRef.current = 0;
+        setMediaRecovering(false);
+        log("Flux média rétabli automatiquement");
+      } else {
+        scheduleRecovery();
+      }
+    }, delay);
   };
 
   useEffect(() => {
     (async () => {
       setCheckingPermissions(true);
-      await acquireStream();
+      const stream = await acquireStream();
+      if (!stream) scheduleRecovery();
       setCheckingPermissions(false);
     })();
     return () => {
       localStreamRef.current?.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (recoveryTimerRef.current) clearTimeout(recoveryTimerRef.current);
       audioCtxRef.current?.close().catch(() => {});
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-négociation sur changement de périphérique ou retour d'arrière-plan
+  useEffect(() => {
+    const onDeviceChange = () => {
+      const s = localStreamRef.current;
+      const alive = s?.getTracks().some(t => t.readyState === "live");
+      if (!alive) scheduleRecovery();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      const s = localStreamRef.current;
+      const alive = s?.getTracks().some(t => t.readyState === "live");
+      if (!alive) scheduleRecovery();
+      else attachStreamToVideos(s);
+    };
+    navigator.mediaDevices?.addEventListener?.("devicechange", onDeviceChange);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      navigator.mediaDevices?.removeEventListener?.("devicechange", onDeviceChange);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -172,6 +254,8 @@ export default function TeleconsultationPage() {
   // Re-attach stream when video elements mount (state transitions)
   useEffect(() => {
     attachStreamToVideos(localStreamRef.current);
+    const raf = requestAnimationFrame(() => attachStreamToVideos(localStreamRef.current));
+    return () => cancelAnimationFrame(raf);
   }, [state, mainView, videoEnabled]);
 
   // Apply toggles to tracks
@@ -310,18 +394,47 @@ export default function TeleconsultationPage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const enterFullscreen = async () => {
+    if (document.fullscreenElement) return true;
+    const el: any = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitEnterFullscreen;
+    try {
+      await req?.call(el, { navigationUI: "hide" });
+      return !!document.fullscreenElement;
+    } catch {
+      return false;
+    }
+  };
+
+  // Suivi de l'état plein écran (sans glitch lors des bascules)
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    document.addEventListener("webkitfullscreenchange", onChange as EventListener);
+    onChange();
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      document.removeEventListener("webkitfullscreenchange", onChange as EventListener);
+    };
+  }, []);
+
+  // Garantit le plein écran au démarrage effectif de l'appel
+  useEffect(() => {
+    if (state !== "in_progress" || isFullscreen) return;
+    enterFullscreen().then((ok) => {
+      if (!ok) log("Plein écran non accordé — bouton disponible", undefined, "warn");
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
   const handleJoinCall = async () => {
     if (!localStreamRef.current) await acquireStream();
     startSession();
     log("Appel démarré");
+    // Plein écran demandé pendant le geste utilisateur (obligatoire sur mobile)
+    const ok = await enterFullscreen();
+    log(ok ? "Passage en plein écran" : "Plein écran indisponible", undefined, ok ? "info" : "warn");
     setState("waiting");
-    // Try to enter fullscreen (best effort — must be from user gesture)
-    try {
-      await document.documentElement.requestFullscreen?.();
-      log("Passage en plein écran");
-    } catch {
-      log("Plein écran indisponible", undefined, "warn");
-    }
     setTimeout(() => {
       setState("in_progress");
       log("Praticien connecté");
@@ -335,6 +448,7 @@ export default function TeleconsultationPage() {
     }
     localStreamRef.current?.getTracks().forEach(t => t.stop());
     localStreamRef.current = null;
+    if (recoveryTimerRef.current) clearTimeout(recoveryTimerRef.current);
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     const finalEntry = { at: new Date().toISOString(), level: "info" as const, event: "Appel terminé", detail: `Durée ${formatDuration(callDuration)}` };
     saveSession(callDuration, [...callLog, finalEntry]);
@@ -344,13 +458,16 @@ export default function TeleconsultationPage() {
 
   const handleLeave = () => {
     localStreamRef.current?.getTracks().forEach(t => t.stop());
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     navigate("/appointments");
   };
 
   const handleRetryPermissions = async () => {
     setCheckingPermissions(true);
     log("Nouvelle demande d'autorisations");
-    await acquireStream();
+    recoveryAttemptRef.current = 0;
+    const stream = await acquireStream();
+    if (!stream) scheduleRecovery();
     setCheckingPermissions(false);
   };
 
@@ -358,7 +475,11 @@ export default function TeleconsultationPage() {
     const next = facingMode === "user" ? "environment" : "user";
     setFacingMode(next);
     log("Bascule caméra", next === "user" ? "avant" : "arrière");
-    await acquireStream(next);
+    const stream = await acquireStream(next);
+    if (!stream) {
+      setFacingMode(facingMode);
+      scheduleRecovery();
+    }
   };
 
 
@@ -579,43 +700,52 @@ export default function TeleconsultationPage() {
   if (state === "in_progress") {
     return (
       <div className="fixed inset-0 bg-black z-50 flex flex-col">
-        {/* Main tile — practitioner OR local depending on swap */}
+        {/* Main tile — les deux vues restent montées : bascule sans glitch */}
         <div className="absolute inset-0 overflow-hidden bg-black">
-          {mainView === "remote" ? (
-            <div className="w-full h-full bg-gradient-to-b from-gray-700 via-gray-800 to-gray-900 flex items-center justify-center">
-              <div className="flex flex-col items-center gap-4">
-                <Avatar
-                  src={appointment.practitioner?.avatar_url || undefined}
-                  alt="Praticien"
-                  size="xl"
-                  className="w-32 h-32 sm:w-40 sm:h-40 ring-4 ring-white/20"
-                />
-                <p className="text-white/80 text-lg font-medium">
-                  Dr. {appointment.practitioner?.first_name} {appointment.practitioner?.last_name}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <video
-                ref={localVideoMainRef}
-                autoPlay
-                playsInline
-                muted
-                className={cn(
-                  "absolute inset-0 w-full h-full object-cover",
-                  (!cameraOk || !videoEnabled) && "hidden",
-                  facingMode === "user" && "scale-x-[-1]"
-                )}
+          {/* Vue praticien */}
+          <div
+            className={cn(
+              "absolute inset-0 bg-gradient-to-b from-gray-700 via-gray-800 to-gray-900 flex items-center justify-center transition-opacity duration-200",
+              mainView === "remote" ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+          >
+            <div className="flex flex-col items-center gap-4">
+              <Avatar
+                src={appointment.practitioner?.avatar_url || undefined}
+                alt="Praticien"
+                size="xl"
+                className="w-32 h-32 sm:w-40 sm:h-40 ring-4 ring-white/20"
               />
-              {(!cameraOk || !videoEnabled) && (
-                <div className="w-full h-full bg-gradient-to-b from-gray-700 to-gray-900 flex flex-col items-center justify-center gap-2">
-                  <VideoOff className="h-12 w-12 text-white/40" />
-                  <span className="text-white/60 text-sm">Caméra désactivée</span>
-                </div>
+              <p className="text-white/80 text-lg font-medium">
+                Dr. {appointment.practitioner?.first_name} {appointment.practitioner?.last_name}
+              </p>
+            </div>
+          </div>
+          {/* Vue locale */}
+          <div
+            className={cn(
+              "absolute inset-0 transition-opacity duration-200",
+              mainView === "local" ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+          >
+            <video
+              ref={localVideoMainRef}
+              autoPlay
+              playsInline
+              muted
+              className={cn(
+                "absolute inset-0 w-full h-full object-cover",
+                (!cameraOk || !videoEnabled) && "invisible",
+                facingMode === "user" && "scale-x-[-1]"
               )}
-            </>
-          )}
+            />
+            {(!cameraOk || !videoEnabled) && (
+              <div className="absolute inset-0 bg-gradient-to-b from-gray-700 to-gray-900 flex flex-col items-center justify-center gap-2">
+                <VideoOff className="h-12 w-12 text-white/40" />
+                <span className="text-white/60 text-sm">Caméra désactivée</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Top overlay — name + duration */}
@@ -673,55 +803,81 @@ export default function TeleconsultationPage() {
         </div>
 
 
-        {/* PiP tile — the OTHER participant. Tap to swap. */}
+        {/* Retour discret : uniquement en cas d'incident média */}
+        {mediaRecovering && (
+          <div className="absolute top-[calc(6.5rem+env(safe-area-inset-top,0px))] left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-sm text-white/80 text-[11px] px-3 py-1.5 rounded-full">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Reconnexion du média…
+          </div>
+        )}
+
+        {/* Bouton plein écran discret si l'utilisateur en est sorti */}
+        {!isFullscreen && (
+          <button
+            type="button"
+            onClick={() => enterFullscreen()}
+            className="absolute top-[calc(0.9rem+env(safe-area-inset-top,0px))] left-1/2 -translate-x-1/2 z-20 bg-black/50 backdrop-blur-sm text-white/80 text-[11px] px-3 py-1.5 rounded-full"
+          >
+            Plein écran
+          </button>
+        )}
+
+        {/* PiP tile — the OTHER participant. Tap to swap. Les deux vues restent montées. */}
         <button
           type="button"
           onClick={() => setMainView(v => (v === "remote" ? "local" : "remote"))}
           className="absolute top-[calc(3.5rem+env(safe-area-inset-top,0px))] right-4 w-28 sm:w-36 aspect-[3/4] bg-gray-900/80 rounded-2xl overflow-hidden shadow-2xl border border-white/10 z-10 flex items-center justify-center active:scale-95 transition-transform"
           aria-label="Basculer la vue principale"
         >
-          {mainView === "remote" ? (
-            // PiP shows local (patient) camera
-            <>
-              <video
-                ref={localVideoPipRef}
-                autoPlay
-                playsInline
-                muted
-                className={cn(
-                  "absolute inset-0 w-full h-full object-cover",
-                  (!cameraOk || !videoEnabled) && "hidden",
-                  facingMode === "user" && "scale-x-[-1]"
-                )}
-              />
-              {(!cameraOk || !videoEnabled) && (
-                <div className="flex flex-col items-center gap-1">
-                  <VideoOff className="h-6 w-6 text-white/40" />
-                  <span className="text-[10px] text-white/40">Caméra off</span>
-                </div>
+          {/* PiP local (patient) */}
+          <div
+            className={cn(
+              "absolute inset-0 transition-opacity duration-200",
+              mainView === "remote" ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+          >
+            <video
+              ref={localVideoPipRef}
+              autoPlay
+              playsInline
+              muted
+              className={cn(
+                "absolute inset-0 w-full h-full object-cover",
+                (!cameraOk || !videoEnabled) && "invisible",
+                facingMode === "user" && "scale-x-[-1]"
               )}
-              {cameraOk && videoEnabled && (
-                <span
-                  onClick={(e) => { e.stopPropagation(); handleSwitchCamera(); }}
-                  className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/50 text-white/80 hover:bg-black/70 transition-all cursor-pointer"
-                  aria-label="Basculer la caméra"
-                  role="button"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </span>
-              )}
-            </>
-          ) : (
-            // PiP shows the practitioner
-            <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
-              <Avatar
-                src={appointment.practitioner?.avatar_url || undefined}
-                alt="Praticien"
-                size="md"
-                className="ring-2 ring-white/20"
-              />
-            </div>
-          )}
+            />
+            {(!cameraOk || !videoEnabled) && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+                <VideoOff className="h-6 w-6 text-white/40" />
+                <span className="text-[10px] text-white/40">Caméra off</span>
+              </div>
+            )}
+            {cameraOk && videoEnabled && mainView === "remote" && (
+              <span
+                onClick={(e) => { e.stopPropagation(); handleSwitchCamera(); }}
+                className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/50 text-white/80 hover:bg-black/70 transition-all cursor-pointer"
+                aria-label="Basculer la caméra"
+                role="button"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </span>
+            )}
+          </div>
+          {/* PiP praticien */}
+          <div
+            className={cn(
+              "absolute inset-0 bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center transition-opacity duration-200",
+              mainView === "local" ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+          >
+            <Avatar
+              src={appointment.practitioner?.avatar_url || undefined}
+              alt="Praticien"
+              size="md"
+              className="ring-2 ring-white/20"
+            />
+          </div>
         </button>
 
 

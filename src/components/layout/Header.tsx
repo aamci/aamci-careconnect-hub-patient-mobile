@@ -27,7 +27,7 @@ export function Header({
   return (
     <header
       className={cn(
-        "z-40 flex items-center justify-between h-14 px-4 shrink-0",
+        "z-40 flex items-center justify-between h-14 px-4 shrink-0 box-content pt-[env(safe-area-inset-top,0px)]",
         sticky && "sticky top-0",
         transparent 
           ? "bg-transparent" 
