@@ -110,6 +110,16 @@ export default function TeleconsultationPage() {
     }
   };
 
+  // Surveillance des pistes : relance silencieuse si une piste tombe
+  const watchTracks = (stream: MediaStream | null) => {
+    stream?.getTracks().forEach((t) => {
+      t.onended = () => {
+        log(`Piste ${t.kind} interrompue`, undefined, "warn");
+        scheduleRecovery();
+      };
+    });
+  };
+
   const acquireStream = async (mode: "user" | "environment" = facingMode) => {
     // Stop previous tracks
     localStreamRef.current?.getTracks().forEach(t => t.stop());
@@ -119,8 +129,9 @@ export default function TeleconsultationPage() {
     let stream: MediaStream | null = null;
     let camOk = false;
     let micOkLocal = false;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
+    // Tentatives progressives : contraintes idéales → contraintes minimales → audio seul
+    const attempts: MediaStreamConstraints[] = [
+      {
         video: {
           facingMode: { ideal: mode },
           width: { ideal: p.width },
@@ -128,13 +139,27 @@ export default function TeleconsultationPage() {
           frameRate: { ideal: p.frameRate, max: p.frameRate },
         },
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
-      camOk = stream.getVideoTracks().length > 0;
-      micOkLocal = stream.getAudioTracks().length > 0;
-      log("Flux média acquis", `caméra: ${camOk ? "ok" : "ko"}, micro: ${micOkLocal ? "ok" : "ko"}`);
-    } catch (err) {
-      log("Accès caméra refusé ou indisponible", String(err), "error");
-      // Try audio only fallback
+      },
+      { video: { facingMode: { ideal: mode } }, audio: true },
+      { video: true, audio: true },
+      { video: true, audio: false },
+    ];
+
+    for (const constraints of attempts) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        camOk = stream.getVideoTracks().length > 0;
+        micOkLocal = stream.getAudioTracks().length > 0;
+        log("Flux média acquis", `caméra: ${camOk ? "ok" : "ko"}, micro: ${micOkLocal ? "ok" : "ko"}`);
+        break;
+      } catch (err) {
+        stream = null;
+        log("Tentative d'accès média échouée", String(err), "warn");
+      }
+    }
+
+    if (!stream) {
+      // Repli audio uniquement
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         micOkLocal = !!stream?.getAudioTracks().length;
@@ -144,27 +169,80 @@ export default function TeleconsultationPage() {
         log("Aucun périphérique disponible", String(err2), "error");
       }
     }
+
     localStreamRef.current = stream;
     setCameraOk(camOk);
     setMicOk(micOkLocal);
     // apply current toggles
     stream?.getVideoTracks().forEach(t => (t.enabled = videoEnabled));
     stream?.getAudioTracks().forEach(t => (t.enabled = audioEnabled));
+    watchTracks(stream);
     attachStreamToVideos(stream);
     return stream;
+  };
+
+  // Récupération automatique et progressive (backoff), sans bloquer l'interface
+  const scheduleRecovery = () => {
+    if (recoveryTimerRef.current) return;
+    const attempt = recoveryAttemptRef.current;
+    if (attempt >= 6) {
+      setMediaRecovering(false);
+      log("Récupération média abandonnée après plusieurs tentatives", undefined, "error");
+      return;
+    }
+    const delay = Math.min(8000, 800 * Math.pow(2, attempt));
+    recoveryAttemptRef.current = attempt + 1;
+    setMediaRecovering(true);
+    recoveryTimerRef.current = setTimeout(async () => {
+      recoveryTimerRef.current = null;
+      const stream = await acquireStream();
+      const ok = !!stream && (stream.getVideoTracks().length > 0 || stream.getAudioTracks().length > 0);
+      if (ok) {
+        recoveryAttemptRef.current = 0;
+        setMediaRecovering(false);
+        log("Flux média rétabli automatiquement");
+      } else {
+        scheduleRecovery();
+      }
+    }, delay);
   };
 
   useEffect(() => {
     (async () => {
       setCheckingPermissions(true);
-      await acquireStream();
+      const stream = await acquireStream();
+      if (!stream) scheduleRecovery();
       setCheckingPermissions(false);
     })();
     return () => {
       localStreamRef.current?.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (recoveryTimerRef.current) clearTimeout(recoveryTimerRef.current);
       audioCtxRef.current?.close().catch(() => {});
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-négociation sur changement de périphérique ou retour d'arrière-plan
+  useEffect(() => {
+    const onDeviceChange = () => {
+      const s = localStreamRef.current;
+      const alive = s?.getTracks().some(t => t.readyState === "live");
+      if (!alive) scheduleRecovery();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      const s = localStreamRef.current;
+      const alive = s?.getTracks().some(t => t.readyState === "live");
+      if (!alive) scheduleRecovery();
+      else attachStreamToVideos(s);
+    };
+    navigator.mediaDevices?.addEventListener?.("devicechange", onDeviceChange);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      navigator.mediaDevices?.removeEventListener?.("devicechange", onDeviceChange);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -172,6 +250,8 @@ export default function TeleconsultationPage() {
   // Re-attach stream when video elements mount (state transitions)
   useEffect(() => {
     attachStreamToVideos(localStreamRef.current);
+    const raf = requestAnimationFrame(() => attachStreamToVideos(localStreamRef.current));
+    return () => cancelAnimationFrame(raf);
   }, [state, mainView, videoEnabled]);
 
   // Apply toggles to tracks
