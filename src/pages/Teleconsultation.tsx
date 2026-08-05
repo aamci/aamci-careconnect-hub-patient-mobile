@@ -394,18 +394,47 @@ export default function TeleconsultationPage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const enterFullscreen = async () => {
+    if (document.fullscreenElement) return true;
+    const el: any = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitEnterFullscreen;
+    try {
+      await req?.call(el, { navigationUI: "hide" });
+      return !!document.fullscreenElement;
+    } catch {
+      return false;
+    }
+  };
+
+  // Suivi de l'état plein écran (sans glitch lors des bascules)
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    document.addEventListener("webkitfullscreenchange", onChange as EventListener);
+    onChange();
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      document.removeEventListener("webkitfullscreenchange", onChange as EventListener);
+    };
+  }, []);
+
+  // Garantit le plein écran au démarrage effectif de l'appel
+  useEffect(() => {
+    if (state !== "in_progress" || isFullscreen) return;
+    enterFullscreen().then((ok) => {
+      if (!ok) log("Plein écran non accordé — bouton disponible", undefined, "warn");
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
   const handleJoinCall = async () => {
     if (!localStreamRef.current) await acquireStream();
     startSession();
     log("Appel démarré");
+    // Plein écran demandé pendant le geste utilisateur (obligatoire sur mobile)
+    const ok = await enterFullscreen();
+    log(ok ? "Passage en plein écran" : "Plein écran indisponible", undefined, ok ? "info" : "warn");
     setState("waiting");
-    // Try to enter fullscreen (best effort — must be from user gesture)
-    try {
-      await document.documentElement.requestFullscreen?.();
-      log("Passage en plein écran");
-    } catch {
-      log("Plein écran indisponible", undefined, "warn");
-    }
     setTimeout(() => {
       setState("in_progress");
       log("Praticien connecté");
@@ -419,6 +448,7 @@ export default function TeleconsultationPage() {
     }
     localStreamRef.current?.getTracks().forEach(t => t.stop());
     localStreamRef.current = null;
+    if (recoveryTimerRef.current) clearTimeout(recoveryTimerRef.current);
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     const finalEntry = { at: new Date().toISOString(), level: "info" as const, event: "Appel terminé", detail: `Durée ${formatDuration(callDuration)}` };
     saveSession(callDuration, [...callLog, finalEntry]);
@@ -428,13 +458,16 @@ export default function TeleconsultationPage() {
 
   const handleLeave = () => {
     localStreamRef.current?.getTracks().forEach(t => t.stop());
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     navigate("/appointments");
   };
 
   const handleRetryPermissions = async () => {
     setCheckingPermissions(true);
     log("Nouvelle demande d'autorisations");
-    await acquireStream();
+    recoveryAttemptRef.current = 0;
+    const stream = await acquireStream();
+    if (!stream) scheduleRecovery();
     setCheckingPermissions(false);
   };
 
@@ -442,7 +475,11 @@ export default function TeleconsultationPage() {
     const next = facingMode === "user" ? "environment" : "user";
     setFacingMode(next);
     log("Bascule caméra", next === "user" ? "avant" : "arrière");
-    await acquireStream(next);
+    const stream = await acquireStream(next);
+    if (!stream) {
+      setFacingMode(facingMode);
+      scheduleRecovery();
+    }
   };
 
 
