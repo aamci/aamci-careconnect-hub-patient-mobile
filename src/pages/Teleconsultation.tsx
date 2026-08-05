@@ -700,43 +700,52 @@ export default function TeleconsultationPage() {
   if (state === "in_progress") {
     return (
       <div className="fixed inset-0 bg-black z-50 flex flex-col">
-        {/* Main tile — practitioner OR local depending on swap */}
+        {/* Main tile — les deux vues restent montées : bascule sans glitch */}
         <div className="absolute inset-0 overflow-hidden bg-black">
-          {mainView === "remote" ? (
-            <div className="w-full h-full bg-gradient-to-b from-gray-700 via-gray-800 to-gray-900 flex items-center justify-center">
-              <div className="flex flex-col items-center gap-4">
-                <Avatar
-                  src={appointment.practitioner?.avatar_url || undefined}
-                  alt="Praticien"
-                  size="xl"
-                  className="w-32 h-32 sm:w-40 sm:h-40 ring-4 ring-white/20"
-                />
-                <p className="text-white/80 text-lg font-medium">
-                  Dr. {appointment.practitioner?.first_name} {appointment.practitioner?.last_name}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <video
-                ref={localVideoMainRef}
-                autoPlay
-                playsInline
-                muted
-                className={cn(
-                  "absolute inset-0 w-full h-full object-cover",
-                  (!cameraOk || !videoEnabled) && "hidden",
-                  facingMode === "user" && "scale-x-[-1]"
-                )}
+          {/* Vue praticien */}
+          <div
+            className={cn(
+              "absolute inset-0 bg-gradient-to-b from-gray-700 via-gray-800 to-gray-900 flex items-center justify-center transition-opacity duration-200",
+              mainView === "remote" ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+          >
+            <div className="flex flex-col items-center gap-4">
+              <Avatar
+                src={appointment.practitioner?.avatar_url || undefined}
+                alt="Praticien"
+                size="xl"
+                className="w-32 h-32 sm:w-40 sm:h-40 ring-4 ring-white/20"
               />
-              {(!cameraOk || !videoEnabled) && (
-                <div className="w-full h-full bg-gradient-to-b from-gray-700 to-gray-900 flex flex-col items-center justify-center gap-2">
-                  <VideoOff className="h-12 w-12 text-white/40" />
-                  <span className="text-white/60 text-sm">Caméra désactivée</span>
-                </div>
+              <p className="text-white/80 text-lg font-medium">
+                Dr. {appointment.practitioner?.first_name} {appointment.practitioner?.last_name}
+              </p>
+            </div>
+          </div>
+          {/* Vue locale */}
+          <div
+            className={cn(
+              "absolute inset-0 transition-opacity duration-200",
+              mainView === "local" ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+          >
+            <video
+              ref={localVideoMainRef}
+              autoPlay
+              playsInline
+              muted
+              className={cn(
+                "absolute inset-0 w-full h-full object-cover",
+                (!cameraOk || !videoEnabled) && "invisible",
+                facingMode === "user" && "scale-x-[-1]"
               )}
-            </>
-          )}
+            />
+            {(!cameraOk || !videoEnabled) && (
+              <div className="absolute inset-0 bg-gradient-to-b from-gray-700 to-gray-900 flex flex-col items-center justify-center gap-2">
+                <VideoOff className="h-12 w-12 text-white/40" />
+                <span className="text-white/60 text-sm">Caméra désactivée</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Top overlay — name + duration */}
