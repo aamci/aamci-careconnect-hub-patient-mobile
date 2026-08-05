@@ -803,55 +803,81 @@ export default function TeleconsultationPage() {
         </div>
 
 
-        {/* PiP tile — the OTHER participant. Tap to swap. */}
+        {/* Retour discret : uniquement en cas d'incident média */}
+        {mediaRecovering && (
+          <div className="absolute top-[calc(6.5rem+env(safe-area-inset-top,0px))] left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-sm text-white/80 text-[11px] px-3 py-1.5 rounded-full">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Reconnexion du média…
+          </div>
+        )}
+
+        {/* Bouton plein écran discret si l'utilisateur en est sorti */}
+        {!isFullscreen && (
+          <button
+            type="button"
+            onClick={() => enterFullscreen()}
+            className="absolute top-[calc(0.9rem+env(safe-area-inset-top,0px))] left-1/2 -translate-x-1/2 z-20 bg-black/50 backdrop-blur-sm text-white/80 text-[11px] px-3 py-1.5 rounded-full"
+          >
+            Plein écran
+          </button>
+        )}
+
+        {/* PiP tile — the OTHER participant. Tap to swap. Les deux vues restent montées. */}
         <button
           type="button"
           onClick={() => setMainView(v => (v === "remote" ? "local" : "remote"))}
           className="absolute top-[calc(3.5rem+env(safe-area-inset-top,0px))] right-4 w-28 sm:w-36 aspect-[3/4] bg-gray-900/80 rounded-2xl overflow-hidden shadow-2xl border border-white/10 z-10 flex items-center justify-center active:scale-95 transition-transform"
           aria-label="Basculer la vue principale"
         >
-          {mainView === "remote" ? (
-            // PiP shows local (patient) camera
-            <>
-              <video
-                ref={localVideoPipRef}
-                autoPlay
-                playsInline
-                muted
-                className={cn(
-                  "absolute inset-0 w-full h-full object-cover",
-                  (!cameraOk || !videoEnabled) && "hidden",
-                  facingMode === "user" && "scale-x-[-1]"
-                )}
-              />
-              {(!cameraOk || !videoEnabled) && (
-                <div className="flex flex-col items-center gap-1">
-                  <VideoOff className="h-6 w-6 text-white/40" />
-                  <span className="text-[10px] text-white/40">Caméra off</span>
-                </div>
+          {/* PiP local (patient) */}
+          <div
+            className={cn(
+              "absolute inset-0 transition-opacity duration-200",
+              mainView === "remote" ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+          >
+            <video
+              ref={localVideoPipRef}
+              autoPlay
+              playsInline
+              muted
+              className={cn(
+                "absolute inset-0 w-full h-full object-cover",
+                (!cameraOk || !videoEnabled) && "invisible",
+                facingMode === "user" && "scale-x-[-1]"
               )}
-              {cameraOk && videoEnabled && (
-                <span
-                  onClick={(e) => { e.stopPropagation(); handleSwitchCamera(); }}
-                  className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/50 text-white/80 hover:bg-black/70 transition-all cursor-pointer"
-                  aria-label="Basculer la caméra"
-                  role="button"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </span>
-              )}
-            </>
-          ) : (
-            // PiP shows the practitioner
-            <div className="w-full h-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center">
-              <Avatar
-                src={appointment.practitioner?.avatar_url || undefined}
-                alt="Praticien"
-                size="md"
-                className="ring-2 ring-white/20"
-              />
-            </div>
-          )}
+            />
+            {(!cameraOk || !videoEnabled) && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+                <VideoOff className="h-6 w-6 text-white/40" />
+                <span className="text-[10px] text-white/40">Caméra off</span>
+              </div>
+            )}
+            {cameraOk && videoEnabled && mainView === "remote" && (
+              <span
+                onClick={(e) => { e.stopPropagation(); handleSwitchCamera(); }}
+                className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/50 text-white/80 hover:bg-black/70 transition-all cursor-pointer"
+                aria-label="Basculer la caméra"
+                role="button"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </span>
+            )}
+          </div>
+          {/* PiP praticien */}
+          <div
+            className={cn(
+              "absolute inset-0 bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center transition-opacity duration-200",
+              mainView === "local" ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+          >
+            <Avatar
+              src={appointment.practitioner?.avatar_url || undefined}
+              alt="Praticien"
+              size="md"
+              className="ring-2 ring-white/20"
+            />
+          </div>
         </button>
 
 
