@@ -302,6 +302,53 @@ export default function AppointmentDetailPage() {
           </Card>
         )}
 
+        {/* Consultation report */}
+        {appointment.status === "completed" && (
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <FileText className="h-8 w-8 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm">Compte rendu de consultation</p>
+                <p className="text-xs text-muted-foreground">
+                  {existingReport
+                    ? "Disponible dans votre historique"
+                    : "Générez le récapitulatif de votre échange"}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant={existingReport ? "outline" : "default"}
+                disabled={generateReport.isPending}
+                onClick={async () => {
+                  if (existingReport) {
+                    navigate(`/reports/${existingReport.id}`);
+                    return;
+                  }
+                  try {
+                    const id = await generateReport.mutateAsync(appointment.id);
+                    navigate(`/reports/${id}`);
+                  } catch (e) {
+                    toast({
+                      title: "Compte rendu indisponible",
+                      description: e instanceof Error ? e.message : "Réessayez plus tard",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+              >
+                {generateReport.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : existingReport ? (
+                  "Consulter"
+                ) : (
+                  "Générer"
+                )}
+              </Button>
+            </div>
+          </Card>
+        )}
+
+
         {/* Action Buttons */}
         <div className="space-y-3">
           {canJoinTeleconsult && (
