@@ -90,6 +90,88 @@ export type Database = {
           },
         ]
       }
+      consultation_reports: {
+        Row: {
+          appointment_id: string | null
+          created_at: string
+          follow_up: string | null
+          follow_up_date: string | null
+          id: string
+          is_read: boolean
+          observations: string | null
+          patient_profile_id: string
+          practitioner_id: string | null
+          reason: string | null
+          recommendations: string | null
+          source: Database["public"]["Enums"]["report_source"]
+          summary: string
+          symptoms: string | null
+          title: string
+          treatment: string | null
+          updated_at: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          created_at?: string
+          follow_up?: string | null
+          follow_up_date?: string | null
+          id?: string
+          is_read?: boolean
+          observations?: string | null
+          patient_profile_id: string
+          practitioner_id?: string | null
+          reason?: string | null
+          recommendations?: string | null
+          source?: Database["public"]["Enums"]["report_source"]
+          summary: string
+          symptoms?: string | null
+          title?: string
+          treatment?: string | null
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          created_at?: string
+          follow_up?: string | null
+          follow_up_date?: string | null
+          id?: string
+          is_read?: boolean
+          observations?: string | null
+          patient_profile_id?: string
+          practitioner_id?: string | null
+          reason?: string | null
+          recommendations?: string | null
+          source?: Database["public"]["Enums"]["report_source"]
+          summary?: string
+          symptoms?: string | null
+          title?: string
+          treatment?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultation_reports_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultation_reports_patient_profile_id_fkey"
+            columns: ["patient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "patient_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultation_reports_practitioner_id_fkey"
+            columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           appointment_id: string | null
@@ -372,6 +454,53 @@ export type Database = {
             foreignKeyName: "health_forms_patient_profile_id_fkey"
             columns: ["patient_profile_id"]
             isOneToOne: true
+            referencedRelation: "patient_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      health_metrics: {
+        Row: {
+          created_at: string
+          id: string
+          measured_at: string
+          metric_type: string
+          note: string | null
+          patient_profile_id: string
+          secondary_value: number | null
+          unit: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          measured_at?: string
+          metric_type: string
+          note?: string | null
+          patient_profile_id: string
+          secondary_value?: number | null
+          unit?: string
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          measured_at?: string
+          metric_type?: string
+          note?: string | null
+          patient_profile_id?: string
+          secondary_value?: number | null
+          unit?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "health_metrics_patient_profile_id_fkey"
+            columns: ["patient_profile_id"]
+            isOneToOne: false
             referencedRelation: "patient_profiles"
             referencedColumns: ["id"]
           },
@@ -726,6 +855,66 @@ export type Database = {
           },
         ]
       }
+      record_shares: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          message: string | null
+          patient_profile_id: string
+          practitioner_id: string | null
+          revoked_at: string | null
+          share_documents: boolean
+          share_health_form: boolean
+          share_metrics: boolean
+          share_reports: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          message?: string | null
+          patient_profile_id: string
+          practitioner_id?: string | null
+          revoked_at?: string | null
+          share_documents?: boolean
+          share_health_form?: boolean
+          share_metrics?: boolean
+          share_reports?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          message?: string | null
+          patient_profile_id?: string
+          practitioner_id?: string | null
+          revoked_at?: string | null
+          share_documents?: boolean
+          share_health_form?: boolean
+          share_metrics?: boolean
+          share_reports?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "record_shares_patient_profile_id_fkey"
+            columns: ["patient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "patient_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_shares_practitioner_id_fkey"
+            columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           created_at: string
@@ -889,6 +1078,7 @@ export type Database = {
       gender_type: "male" | "female" | "other"
       message_status: "sending" | "sent" | "delivered" | "read" | "failed"
       profile_type: "self" | "child" | "dependent"
+      report_source: "ai_generated" | "practitioner" | "patient_note"
       review_moderation_status: "published" | "under_review" | "rejected"
       sender_type: "patient" | "practitioner" | "system"
     }
@@ -1040,6 +1230,7 @@ export const Constants = {
       gender_type: ["male", "female", "other"],
       message_status: ["sending", "sent", "delivered", "read", "failed"],
       profile_type: ["self", "child", "dependent"],
+      report_source: ["ai_generated", "practitioner", "patient_note"],
       review_moderation_status: ["published", "under_review", "rejected"],
       sender_type: ["patient", "practitioner", "system"],
     },
