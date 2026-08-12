@@ -39,14 +39,15 @@ export function Header({
         {showBack && (
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             onClick={() => navigate(-1)}
-            className="text-foreground shrink-0"
+            className="text-foreground shrink-0 h-11 w-11 -ml-2 active:scale-95 transition-transform"
             aria-label="Retour"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-6 w-6" />
           </Button>
         )}
+
         {title && (
           <h1 className="text-lg font-semibold font-display truncate">{title}</h1>
         )}
