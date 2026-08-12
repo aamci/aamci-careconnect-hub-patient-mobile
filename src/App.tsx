@@ -38,6 +38,9 @@ import HealthContent from "./pages/HealthContent";
 import PostConsultationReview from "./pages/PostConsultationReview";
 import PractitionerReviews from "./pages/PractitionerReviews";
 import ReportPage from "./pages/ReportPage";
+import ConsultationReport from "./pages/ConsultationReport";
+import HealthMetrics from "./pages/HealthMetrics";
+import ShareRecords from "./pages/ShareRecords";
 
 const queryClient = new QueryClient();
 
@@ -69,6 +72,9 @@ const App = () => (
             <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
             <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
             <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
+            <Route path="/reports/:id" element={<ProtectedRoute><ConsultationReport /></ProtectedRoute>} />
+            <Route path="/health/metrics" element={<ProtectedRoute><HealthMetrics /></ProtectedRoute>} />
+            <Route path="/share" element={<ProtectedRoute><ShareRecords /></ProtectedRoute>} />
             <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
             <Route path="/practitioners/:id" element={<ProtectedRoute><PractitionerDetail /></ProtectedRoute>} />
             <Route path="/booking/:practitionerId" element={<ProtectedRoute><Booking /></ProtectedRoute>} />
