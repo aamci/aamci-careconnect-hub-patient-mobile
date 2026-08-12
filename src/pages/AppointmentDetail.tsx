@@ -24,6 +24,7 @@ import { Badge } from "@/components/common/Badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppointments, useCancelAppointment } from "@/hooks/useAppointments";
 import { useCreateMessageThread } from "@/hooks/useMessages";
+import { useConsultationReports, useGenerateConsultationReport } from "@/hooks/useConsultationReports";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,8 +57,11 @@ export default function AppointmentDetailPage() {
   const { data: appointments, isLoading } = useAppointments();
   const cancelAppointment = useCancelAppointment();
   const createThread = useCreateMessageThread();
+  const { data: reports } = useConsultationReports();
+  const generateReport = useGenerateConsultationReport();
 
   const appointment = appointments?.find((a) => a.id === id);
+  const existingReport = reports?.find((r) => r.appointment_id === id);
 
   if (isLoading) {
     return (
