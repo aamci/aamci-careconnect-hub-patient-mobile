@@ -15,7 +15,8 @@ import {
   Activity,
   Brain,
   History,
-  FileText
+  FileText,
+  Share2
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
