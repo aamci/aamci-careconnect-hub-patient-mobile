@@ -35,6 +35,8 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { useAppointments } from "@/hooks/useAppointments";
 import { useCallLog } from "@/hooks/useCallLog";
+import { CallChatPanel } from "@/components/teleconsultation/CallChatPanel";
+
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
