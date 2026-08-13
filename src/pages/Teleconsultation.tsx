@@ -881,14 +881,16 @@ export default function TeleconsultationPage() {
         </button>
 
 
-        {/* Chat panel */}
-        {showChat && (
-          <div className="absolute bottom-36 left-4 right-4 bg-black/70 backdrop-blur-md rounded-2xl p-4 max-h-64 overflow-y-auto z-10 border border-white/10">
-            <div className="text-white/60 text-sm text-center">
-              Chat en cours de consultation
-            </div>
-          </div>
-        )}
+        {/* Chat panel — messagerie réelle, plein écran au-dessus des contrôles */}
+        <CallChatPanel
+          open={showChat}
+          onClose={() => setShowChat(false)}
+          patientProfileId={appointment.patient_profile_id}
+          practitionerId={appointment.practitioner_id}
+          practitionerName={`Dr. ${appointment.practitioner?.first_name ?? ""} ${appointment.practitioner?.last_name ?? ""}`.trim()}
+          appointmentId={appointment.id}
+        />
+
 
         {/* Bottom controls — floating over video */}
         <div className="absolute bottom-0 left-0 right-0 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-8 px-6 bg-gradient-to-t from-black/70 to-transparent z-10">
