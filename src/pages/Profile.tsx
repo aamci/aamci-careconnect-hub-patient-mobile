@@ -19,7 +19,9 @@ import {
   Crown,
   Mail,
   Phone,
-  Flag
+  Flag,
+  Activity,
+  Share2
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -125,6 +127,22 @@ export default function ProfilePage() {
           path: "/history",
           iconBg: "bg-cyan-500/10",
           iconColor: "text-cyan-500",
+        },
+        { 
+          icon: Activity, 
+          label: "Mes constantes", 
+          description: "Poids, tension, glycémie…",
+          path: "/health/metrics",
+          iconBg: "bg-sky-500/10",
+          iconColor: "text-sky-500",
+        },
+        { 
+          icon: Share2, 
+          label: "Partage du dossier", 
+          description: "Donner un accès temporaire à un praticien",
+          path: "/share",
+          iconBg: "bg-violet-500/10",
+          iconColor: "text-violet-500",
         },
       ],
     },
