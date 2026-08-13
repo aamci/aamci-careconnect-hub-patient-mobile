@@ -939,6 +939,8 @@ export default function TeleconsultationPage() {
 
             <button 
               onClick={() => setVideoEnabled(!videoEnabled)}
+              aria-pressed={!videoEnabled}
+              aria-label={videoEnabled ? "Couper la caméra" : "Réactiver la caméra"}
               className={cn(
                 "p-4 rounded-full min-w-[56px] min-h-[56px] flex items-center justify-center shadow-lg transition-all",
                 videoEnabled 
@@ -951,6 +953,7 @@ export default function TeleconsultationPage() {
 
             <button 
               onClick={handleEndCall}
+              aria-label="Terminer l'appel"
               className="p-5 rounded-full bg-destructive text-destructive-foreground min-w-[64px] min-h-[64px] flex items-center justify-center shadow-xl transition-transform hover:scale-105"
             >
               <Phone className="h-7 w-7 rotate-[135deg]" />
@@ -958,6 +961,8 @@ export default function TeleconsultationPage() {
 
             <button 
               onClick={() => setShowChat(!showChat)}
+              aria-expanded={showChat}
+              aria-label="Ouvrir la messagerie"
               className={cn(
                 "p-4 rounded-full min-w-[56px] min-h-[56px] flex items-center justify-center shadow-lg transition-all",
                 showChat 
@@ -967,6 +972,7 @@ export default function TeleconsultationPage() {
             >
               <MessageCircle className="h-6 w-6" />
             </button>
+
 
             <button 
               onClick={() => setSpeakerEnabled(!speakerEnabled)}
