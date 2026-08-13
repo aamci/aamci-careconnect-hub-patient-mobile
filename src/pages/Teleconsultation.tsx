@@ -35,6 +35,8 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { useAppointments } from "@/hooks/useAppointments";
 import { useCallLog } from "@/hooks/useCallLog";
+import { CallChatPanel } from "@/components/teleconsultation/CallChatPanel";
+
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -881,14 +883,16 @@ export default function TeleconsultationPage() {
         </button>
 
 
-        {/* Chat panel */}
-        {showChat && (
-          <div className="absolute bottom-36 left-4 right-4 bg-black/70 backdrop-blur-md rounded-2xl p-4 max-h-64 overflow-y-auto z-10 border border-white/10">
-            <div className="text-white/60 text-sm text-center">
-              Chat en cours de consultation
-            </div>
-          </div>
-        )}
+        {/* Chat panel — messagerie réelle, plein écran au-dessus des contrôles */}
+        <CallChatPanel
+          open={showChat}
+          onClose={() => setShowChat(false)}
+          patientProfileId={appointment.patient_profile_id}
+          practitionerId={appointment.practitioner_id}
+          practitionerName={`Dr. ${appointment.practitioner?.first_name ?? ""} ${appointment.practitioner?.last_name ?? ""}`.trim()}
+          appointmentId={appointment.id}
+        />
+
 
         {/* Bottom controls — floating over video */}
         <div className="absolute bottom-0 left-0 right-0 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-8 px-6 bg-gradient-to-t from-black/70 to-transparent z-10">
@@ -935,6 +939,8 @@ export default function TeleconsultationPage() {
 
             <button 
               onClick={() => setVideoEnabled(!videoEnabled)}
+              aria-pressed={!videoEnabled}
+              aria-label={videoEnabled ? "Couper la caméra" : "Réactiver la caméra"}
               className={cn(
                 "p-4 rounded-full min-w-[56px] min-h-[56px] flex items-center justify-center shadow-lg transition-all",
                 videoEnabled 
@@ -947,6 +953,7 @@ export default function TeleconsultationPage() {
 
             <button 
               onClick={handleEndCall}
+              aria-label="Terminer l'appel"
               className="p-5 rounded-full bg-destructive text-destructive-foreground min-w-[64px] min-h-[64px] flex items-center justify-center shadow-xl transition-transform hover:scale-105"
             >
               <Phone className="h-7 w-7 rotate-[135deg]" />
@@ -954,6 +961,8 @@ export default function TeleconsultationPage() {
 
             <button 
               onClick={() => setShowChat(!showChat)}
+              aria-expanded={showChat}
+              aria-label="Ouvrir la messagerie"
               className={cn(
                 "p-4 rounded-full min-w-[56px] min-h-[56px] flex items-center justify-center shadow-lg transition-all",
                 showChat 
@@ -963,6 +972,7 @@ export default function TeleconsultationPage() {
             >
               <MessageCircle className="h-6 w-6" />
             </button>
+
 
             <button 
               onClick={() => setSpeakerEnabled(!speakerEnabled)}
