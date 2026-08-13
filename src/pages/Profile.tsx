@@ -19,7 +19,9 @@ import {
   Crown,
   Mail,
   Phone,
-  Flag
+  Flag,
+  Activity,
+  Share2
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
