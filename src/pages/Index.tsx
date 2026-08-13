@@ -125,7 +125,7 @@ export default function Index() {
           </div>
 
           {/* Secondary Actions */}
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => navigate("/documents")}
               className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors min-h-[64px]"
@@ -139,6 +139,20 @@ export default function Index() {
             >
               <History className="h-5 w-5 text-primary" />
               <span className="text-xs text-muted-foreground">Historique</span>
+            </button>
+            <button
+              onClick={() => navigate("/health/metrics")}
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors min-h-[64px]"
+            >
+              <Activity className="h-5 w-5 text-primary" />
+              <span className="text-xs text-muted-foreground">Constantes</span>
+            </button>
+            <button
+              onClick={() => navigate("/share")}
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors min-h-[64px]"
+            >
+              <Share2 className="h-5 w-5 text-primary" />
+              <span className="text-xs text-muted-foreground">Partage</span>
             </button>
             <button
               onClick={() => navigate("/favorites")}
