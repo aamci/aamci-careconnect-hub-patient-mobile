@@ -272,9 +272,13 @@ export default function AppointmentDetailPage() {
                 {appointment.type === "teleconsultation" ? "Téléconsultation" : "Consultation en cabinet"}
               </p>
               {appointment.facility && (
-                <p className="text-sm text-muted-foreground truncate">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/facilities/${appointment.facility_id}`)}
+                  className="text-sm text-primary underline-offset-2 hover:underline truncate text-left"
+                >
                   {appointment.facility.name}
-                </p>
+                </button>
               )}
             </div>
           </div>
