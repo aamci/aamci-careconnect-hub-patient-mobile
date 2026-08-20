@@ -41,6 +41,9 @@ import ReportPage from "./pages/ReportPage";
 import ConsultationReport from "./pages/ConsultationReport";
 import HealthMetrics from "./pages/HealthMetrics";
 import ShareRecords from "./pages/ShareRecords";
+import FacilityDetail from "./pages/FacilityDetail";
+import Terms from "./pages/legal/Terms";
+import Privacy from "./pages/legal/Privacy";
 
 const queryClient = new QueryClient();
 
@@ -87,6 +90,9 @@ const App = () => (
             <Route path="/review/:appointmentId" element={<ProtectedRoute><PostConsultationReview /></ProtectedRoute>} />
             <Route path="/practitioners/:id/reviews" element={<ProtectedRoute><PractitionerReviews /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute><ReportPage /></ProtectedRoute>} />
+            <Route path="/facilities/:id" element={<ProtectedRoute><FacilityDetail /></ProtectedRoute>} />
+            <Route path="/legal/terms" element={<Terms />} />
+            <Route path="/legal/privacy" element={<Privacy />} />
             
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
