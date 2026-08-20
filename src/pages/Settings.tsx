@@ -37,10 +37,11 @@ import { useState } from "react";
 
 import { ChangePasswordDialog } from "@/components/settings/ChangePasswordDialog";
 import { useDarkMode } from "@/hooks/useDarkMode";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { toast } = useToast();
   const { enabled: darkMode, toggle: toggleDarkMode } = useDarkMode();
   const [biometric, setBiometric] = useState(false);
@@ -58,14 +59,71 @@ export default function SettingsPage() {
   };
 
   const handleExportData = async () => {
+    if (!user) return;
     setExporting(true);
-    // Simulate export
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setExporting(false);
-    toast({
-      title: "Export en cours",
-      description: "Vous recevrez vos données par email dans quelques minutes",
-    });
+    try {
+      const { data: profiles } = await supabase
+        .from("patient_profiles")
+        .select("*")
+        .eq("user_id", user.id);
+      const profileIds = (profiles ?? []).map((p: any) => p.id);
+
+      const fetchByProfile = async (table: string) => {
+        if (!profileIds.length) return [];
+        const { data } = await supabase
+          .from(table as any)
+          .select("*")
+          .in("patient_profile_id", profileIds);
+        return data ?? [];
+      };
+
+      const [appointments, documents, reports, metrics, healthForms, shares, prefs] = await Promise.all([
+        fetchByProfile("appointments"),
+        fetchByProfile("documents"),
+        fetchByProfile("consultation_reports"),
+        fetchByProfile("health_metrics"),
+        fetchByProfile("health_forms"),
+        fetchByProfile("record_shares"),
+        supabase.from("notification_preferences").select("*").eq("user_id", user.id).then(r => r.data ?? []),
+      ]);
+
+      const payload = {
+        export_type: "Export RGPD - MédiSanté",
+        exported_at: new Date().toISOString(),
+        account: { id: user.id, email: user.email },
+        profiles: profiles ?? [],
+        appointments,
+        documents,
+        consultation_reports: reports,
+        health_metrics: metrics,
+        health_forms: healthForms,
+        record_shares: shares,
+        notification_preferences: prefs,
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `medisante-donnees-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export terminé",
+        description: "Vos données ont été téléchargées au format JSON",
+      });
+    } catch (error) {
+      toast({
+        title: "Export impossible",
+        description: "Une erreur est survenue lors de l'export de vos données",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const settingsGroups = [
