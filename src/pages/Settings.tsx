@@ -177,22 +177,12 @@ export default function SettingsPage() {
         {
           icon: FileText,
           label: "Conditions d'utilisation",
-          onClick: () => {
-            toast({
-              title: "Conditions d'utilisation",
-              description: "Les conditions seront disponibles prochainement",
-            });
-          },
+          onClick: () => navigate("/legal/terms"),
         },
         {
           icon: Shield,
           label: "Politique de confidentialité",
-          onClick: () => {
-            toast({
-              title: "Politique de confidentialité",
-              description: "La politique de confidentialité sera disponible prochainement",
-            });
-          },
+          onClick: () => navigate("/legal/privacy"),
         },
       ],
     },
