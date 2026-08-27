@@ -42,6 +42,7 @@ import ConsultationReport from "./pages/ConsultationReport";
 import HealthMetrics from "./pages/HealthMetrics";
 import ShareRecords from "./pages/ShareRecords";
 import FacilityDetail from "./pages/FacilityDetail";
+import Notifications from "./pages/Notifications";
 import Terms from "./pages/legal/Terms";
 import Privacy from "./pages/legal/Privacy";
 
