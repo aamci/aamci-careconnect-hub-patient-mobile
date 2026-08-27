@@ -16,8 +16,10 @@ import {
   Brain,
   History,
   FileText,
-  Share2
+  Share2,
+  Bell
 } from "lucide-react";
+import { useUnreadNotificationCount } from "@/hooks/useNotifications";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { Button } from "@/components/ui/button";
