@@ -55,6 +55,7 @@ export default function Index() {
   const { data: specialties, isLoading: specialtiesLoading } = useSpecialties();
   const { data: practitioners, isLoading: practitionersLoading } = usePractitioners();
   const { data: appointments, isLoading: appointmentsLoading } = useAppointments();
+  const unreadNotifications = useUnreadNotificationCount();
 
   const currentProfile = profiles?.find(p => p.profile_type === 'self') || profiles?.[0];
   
