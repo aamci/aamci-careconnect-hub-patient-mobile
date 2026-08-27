@@ -16,8 +16,10 @@ import {
   Brain,
   History,
   FileText,
-  Share2
+  Share2,
+  Bell
 } from "lucide-react";
+import { useUnreadNotificationCount } from "@/hooks/useNotifications";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { Button } from "@/components/ui/button";
@@ -53,6 +55,7 @@ export default function Index() {
   const { data: specialties, isLoading: specialtiesLoading } = useSpecialties();
   const { data: practitioners, isLoading: practitionersLoading } = usePractitioners();
   const { data: appointments, isLoading: appointmentsLoading } = useAppointments();
+  const unreadNotifications = useUnreadNotificationCount();
 
   const currentProfile = profiles?.find(p => p.profile_type === 'self') || profiles?.[0];
   
@@ -82,13 +85,33 @@ export default function Index() {
                   {firstName} 👋
                 </h1>
               </div>
-              <Avatar 
-                src={currentProfile?.avatar_url || undefined}
-                alt={firstName}
-                size="lg"
-                onClick={() => navigate("/profile")}
-                className="shrink-0"
-              />
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={
+                    unreadNotifications > 0
+                      ? `Notifications, ${unreadNotifications} non lues`
+                      : "Notifications"
+                  }
+                  onClick={() => navigate("/notifications")}
+                  className="relative min-h-11 min-w-11 rounded-full bg-card/70 border border-border/50"
+                >
+                  <Bell className="h-5 w-5" />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                      {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                    </span>
+                  )}
+                </Button>
+                <Avatar
+                  src={currentProfile?.avatar_url || undefined}
+                  alt={firstName}
+                  size="lg"
+                  onClick={() => navigate("/profile")}
+                  className="shrink-0"
+                />
+              </div>
             </div>
 
             {/* Search Bar */}

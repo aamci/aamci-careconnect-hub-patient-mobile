@@ -42,6 +42,7 @@ import ConsultationReport from "./pages/ConsultationReport";
 import HealthMetrics from "./pages/HealthMetrics";
 import ShareRecords from "./pages/ShareRecords";
 import FacilityDetail from "./pages/FacilityDetail";
+import Notifications from "./pages/Notifications";
 import Terms from "./pages/legal/Terms";
 import Privacy from "./pages/legal/Privacy";
 
@@ -91,6 +92,7 @@ const App = () => (
             <Route path="/practitioners/:id/reviews" element={<ProtectedRoute><PractitionerReviews /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute><ReportPage /></ProtectedRoute>} />
             <Route path="/facilities/:id" element={<ProtectedRoute><FacilityDetail /></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/legal/terms" element={<Terms />} />
             <Route path="/legal/privacy" element={<Privacy />} />
             
